@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/mpair unstable/sequence racket/syntax)
+(require racket/mpair racket/sequence racket/syntax)
 (require srfi/4)
 (require "env.rkt" "ast.rkt") ; to build the eta-expansions
 
@@ -86,6 +86,8 @@
     (,#'boolean?          . ,boolean?)
     (,#'bitwise-ior       . ,bitwise-ior)
     (,#'bitwise-xor       . ,bitwise-xor)))
+
+(define (in-pairs seq) (in-parallel (sequence-map car seq) (sequence-map cdr seq)))
 
 (for ([(name folder) (in-pairs folders)])
   (add-constant-folder name folder))
