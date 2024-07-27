@@ -9,6 +9,6 @@ extern uint8 ram_mem[];
 
 #define ROM_BYTES 8192
 extern uint8 rom_mem[];
-#define rom_get(a) (rom_mem[a-CODE_START])
+#define rom_get(a) (rom_mem[(a)-CODE_START])
 
 #endif
