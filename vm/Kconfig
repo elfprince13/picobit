@@ -19,6 +19,11 @@ choice
 	config	ARCH_ARM
 		bool "ARM microcontrollers"
 		select ARCH_32BIT
+		  
+
+	config	ARCH_EZ80
+		bool "eZ80 microcontrollers"
+		select ARCH_16BIT
 endchoice
 
 config ERROR_HANDLING
@@ -30,6 +35,9 @@ config DEBUG_STRINGS
 config ARCH_8BIT
 	bool
 
+config ARCH_16BIT
+	bool
+
 config ARCH_32BIT
 	bool
 
@@ -37,6 +45,7 @@ config ARCH
 	string
 	default "host" if ARCH_HOST
 	default "arm" if ARCH_ARM
+	default "ez80" if ARCH_EZ80
 
 if ARCH_HOST
 source "arch/host/Kconfig"
@@ -44,6 +53,10 @@ endif
 
 if ARCH_ARM
 source "arch/arm/Kconfig"
+endif
+
+if ARCH_EZ80
+source "arch/ez80/Kconfig"
 endif
 
 source "core/Kconfig"

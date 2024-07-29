@@ -80,7 +80,7 @@ include/arch: include/config/auto.conf
 	@ln -sf ../$(arch)/include/ include/arch
 
 CROSS  := $(call unquote,$(CONFIG_CROSS_COMPILER))
-CFLAGS := -Iinclude/ -DPICOBIT -Wall -Werror -Os
+CFLAGS := -Iinclude/ -DPICOBIT -Wall -Werror -Os --std=gnu11
 
 arch  = arch/$(call unquote,$(CONFIG_ARCH))
 # Some linkers may have trouble with this order. Put arch first if
@@ -101,7 +101,7 @@ prim-gen = gawk -f scripts/scanner.awk -f scripts/prim-$(1).awk \
 .primitives.p: include/arch $(obj-y)
 	rm -f $@
 	for object in $(obj-y); do \
-		$(CROSS)cpp -DNO_PRIMITIVE_EXPAND $(CFLAGS) \
+		$(CROSS)clang-cpp -DNO_PRIMITIVE_EXPAND $(CFLAGS) \
 			$$object -o - >>$@; \
 	done
 	$(call prim-gen,headergen,include/gen.primitives.h)
@@ -129,7 +129,8 @@ endif # $(config-targets)
 endif # $(mixed-targets)
 
 clean: FORCE
-	rm -f include/arch picobit-vm picobit.elf picobit.hex \
+	rm -f include/arch picobit-vm picobit.elf picobit.hex picobit-vm.src picobit-vm.bc \
+		./core/*.bc ./core/*.d ./arch/*/*.bc ./arch/*/*.d \
 		.primitives.p ../compiler/gen.* include/gen.* \
 		core/gen.*
 

@@ -1,3 +1,6 @@
+.vscode/
+compile_commands.json
+.DS_Store
 *.dSYM/
 *.o
 *.hex

@@ -1,0 +1,4 @@
+config CROSS_COMPILER
+	string "Cross compiler prefix"
+	default "ez80-"
+

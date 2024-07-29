@@ -1,0 +1,3 @@
+[submodule "vm/arch/ez80/deps/app_tools"]
+	path = vm/arch/ez80/deps/app_tools
+	url = ssh://git@github.com/CE-Programming/app_tools/
