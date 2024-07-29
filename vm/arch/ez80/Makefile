@@ -31,18 +31,22 @@ $(llvm-y): %.c.bc: %.c .config
 picobit-vm.bc: $(llvm-y) .config
 	$(CROSS)link $(llvm-y) -o $@
 
+linker_script: arch/ez80/deps/app_tools/linker_script
+	CEDEV=$(CEDEV) APP_TOOLS_INSTALL_DIR=arch/ez80/deps/app_tools envsubst < arch/ez80/deps/app_tools/linker_script > linker_script
+
 picobit-vm.src: picobit-vm.bc
 	$(CROSS)clang -S -mllvm -profile-guided-section-prefix=false -Wall -Wextra -Oz picobit-vm.bc -o picobit-vm.src
 
 icon.src:
 	$(CEDEV)/bin/convimg --icon-output '$@' --icon-format asm --icon-description '$(ON_CALC_DESC)'
 
-picobit-vm.bin: picobit-vm.src icon.src
+picobit-vm.bin: picobit-vm.src icon.src linker_script
 	$(CEDEV)/bin/fasmg -n '$(CEDEV)/meta/ld.alm'\
-		-i 'DEBUG := 0' -i 'HAS_PRINTF := 1' -i 'HAS_LIBC := 1' -i 'HAS_LIBCXX := 1' -i 'PREFER_OS_CRT := 0' -i 'PREFER_OS_LIBC := 1' -i 'ALLOCATOR_STANDARD := 1'\
-		-i 'include "arch/ez80/deps/app_tools/linker_script"'\
+		-i 'DEBUG := 0' -i 'HAS_PRINTF := 1' -i 'HAS_LIBC := 1' -i 'HAS_LIBCXX := 0' -i 'PREFER_OS_CRT := 0' -i 'PREFER_OS_LIBC := 1' -i 'ALLOCATOR_STANDARD := 1'\
+		-i 'include "linker_script"'\
 		-i 'range .bss $$D052C6 : $$D13FD8' -i 'provide __stack = $$D1A87E' -i 'locate .header at $$0'\
-		-i 'provide __app_name = "$(ON_CALC_NAME)"'  -i 'provide __app_version = "0"' -i 'provide __app_desc = "$(ON_CALC_DESC)"'
+		-i 'provide __app_name = $(ON_CALC_NAME)'  -i 'provide __app_version = "0"' -i 'provide __app_desc = $(ON_CALC_DESC)'\
 		-i 'source "icon.src", "$(CEDEV)/lib/crt/crt0.src", "picobit-vm.src"'\
-		-i 'library "$(CEDEV)/lib/libload/fatdrvce.lib", "$(CEDEV)/lib/libload/fileioc.lib", "$(CEDEV)/lib/libload/fontlibc.lib", "$(CEDEV)/lib/libload/graphx.lib", "$(CEDEV)/lib/libload/keypadc.lib", "$(CEDEV)/lib/libload/msddrvce.lib", "$(CEDEV)/lib/libload/srldrvce.lib", "$(CEDEV)/lib/libload/usbdrvce.lib"'
+		-i 'library "$(CEDEV)/lib/libload/fatdrvce.lib", "$(CEDEV)/lib/libload/fileioc.lib", "$(CEDEV)/lib/libload/fontlibc.lib", "$(CEDEV)/lib/libload/graphx.lib", "$(CEDEV)/lib/libload/keypadc.lib", "$(CEDEV)/lib/libload/msddrvce.lib", "$(CEDEV)/lib/libload/srldrvce.lib", "$(CEDEV)/lib/libload/usbdrvce.lib"'\
+		'$@'
 

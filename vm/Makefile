@@ -129,7 +129,7 @@ endif # $(config-targets)
 endif # $(mixed-targets)
 
 clean: FORCE
-	rm -f include/arch picobit-vm picobit.elf picobit.hex picobit-vm.src picobit-vm.bc \
+	rm -f include/arch picobit-vm picobit.elf picobit.hex picobit-vm.src picobit-vm.bc linker_script \
 		./core/*.bc ./core/*.d ./arch/*/*.bc ./arch/*/*.d \
 		.primitives.p ../compiler/gen.* include/gen.* \
 		core/gen.*

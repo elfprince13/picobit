@@ -3,6 +3,11 @@ compile_commands.json
 .DS_Store
 *.dSYM/
 *.o
+*.d
+*.bc
+picobit-vm.src
+vm/icon.src
+vm/linker_script
 *.hex
 *~
 TAGS
