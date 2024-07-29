@@ -24,6 +24,7 @@ choice
 	config	ARCH_EZ80
 		bool "eZ80 microcontrollers"
 		select ARCH_16BIT
+		select ERROR_HANDLING
 endchoice
 
 config ERROR_HANDLING

@@ -5,21 +5,24 @@
 #include <dispatch.h>
 #include <gc.h>
 
+#include <ti/error.h>
+#include <fileioc.h>
+
 uint8 ram_mem[RAM_BYTES + VEC_BYTES] = {0};
-// compiler first figure out how to do indirection with this later
-uint8 rom_mem[ROM_BYTES] = {0};
+uint8 * rom_mem = NULL;
 
 void error (char *prim, char *msg)
 {
-	printf ("ERROR: %s: %s\n", prim, msg);
-	exit (1);
+    // maximum of 12 bytes, must be nul-terminated
+    snprintf(os_AppErr1, 12, "%s:%s", prim, msg); 
+    os_ThrowError(OS_E_APPERR1);
 }
 
 void type_error (char *prim, char *type)
 {
-	printf ("ERROR: %s: An argument of type %s was expected\n",
-		 prim, type);
-	exit (1);
+	// maximum of 12 bytes, must be nul-terminated
+    snprintf(os_AppErr2, 12, "%s-%s", prim, type);
+    os_ThrowError(OS_E_APPERR2);
 }
 
 void write_hex_nibble (int n)
@@ -64,8 +67,8 @@ int read_hex_byte (FILE *f)
 
 int read_hex_file (char *filename)
 {
-	int c;
-	FILE *f = fopen (filename, "r");
+	int c = *filename; // dummy change to test compiling before this function is delete
+	FILE *f = NULL;//fopen (filename, "r");
 	int result = 0;
 	int len;
 	int a, a1, a2;
@@ -172,22 +175,24 @@ next0:
 	return result;
 }
 
-void usage ()
-{
-	printf ("usage: sim file.hex\n");
-	exit (1);
-}
-
-int main (int argc, char *argv[])
+int main (void)
 {
 	int errcode = 0;
+    {
+        // create a fresh ROM in RAM ;)
+        int romHandle = ti_Open("RustlROM", "w");
+        //const int64_t BIG_ZERO = 0;
+        if (romHandle != 0) {
 
-	if (argc != 2) {
-		usage ();
-	}
+            ti_Close(romHandle);
+        } else {
+            error("<main>", "ROM fail");
+        }
+    } 
 
-	if (!read_hex_file (argv[1])) {
-		printf ("*** Could not read hex file \"%s\"\n", argv[1]);
+
+	if (true/*!read_hex_file (argv[1])*/) {
+		printf ("*** Could not read hex file \n");
 	} else {
 		if (rom_get (CODE_START+0) != 0xfb ||
 		    rom_get (CODE_START+1) != 0xd7) {
