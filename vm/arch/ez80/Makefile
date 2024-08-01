@@ -21,7 +21,7 @@ stdlib-y += stdlib.scm
 
 load-address := \#x8000
 
-arch-all: picobit-vm.bin
+arch-all: rustle.8ek
 
 llvm-y = $(addsuffix .bc,$(obj-y))
 
@@ -38,7 +38,10 @@ picobit-vm.src: picobit-vm.bc
 	$(CROSS)clang -S -mllvm -profile-guided-section-prefix=false -Wall -Wextra -Oz picobit-vm.bc -o picobit-vm.src
 
 icon.src:
-	$(CEDEV)/bin/convimg --icon-output '$@' --icon-format asm --icon-description '$(ON_CALC_DESC)'
+	$(CEDEV)/bin/convimg --icon-output '$@' --icon-format asm --icon-description $(ON_CALC_DESC)
+
+rustle.8ek: picobit-vm.bin
+	arch/ez80/deps/app_tools/make_8ek.py picobit-vm.bin rustle.8ek $(ON_CALC_NAME)
 
 picobit-vm.bin: picobit-vm.src icon.src linker_script
 	$(CEDEV)/bin/fasmg -n '$(CEDEV)/meta/ld.alm'\
