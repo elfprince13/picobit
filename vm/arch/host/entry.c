@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <picobit.h>
 #include <dispatch.h>
@@ -172,7 +173,7 @@ next0:
 
 void usage ()
 {
-	printf ("usage: sim file.hex\n");
+	printf ("usage: sim file.hex [-]\n");
 	exit (1);
 }
 
@@ -180,7 +181,7 @@ int main (int argc, char *argv[])
 {
 	int errcode = 0;
 
-	if (argc != 2) {
+	if (argc != 2 && (argc != 3 || (argc == 3 && 0 != strcmp("-",argv[2])))) {
 		usage ();
 	}
 
@@ -190,12 +191,14 @@ int main (int argc, char *argv[])
 		if (rom_get (CODE_START+0) != 0xfb ||
 		    rom_get (CODE_START+1) != 0xd7) {
 			printf ("*** The hex file was not compiled with PICOBIT\n");
-		} else {
+		} else if (argc == 2) {
 			interpreter ();
 
 #ifdef CONFIG_GC_DEBUG
 			printf ("**************** memory needed = %d\n", max_live + 1);
 #endif
+		} else {
+			fwrite(rom_mem, 1, ROM_BYTES, stdout);
 		}
 	}
 
