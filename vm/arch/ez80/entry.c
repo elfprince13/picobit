@@ -8,18 +8,19 @@
 
 #include <ti/error.h>
 #include <fileioc.h>
+#include <debug.h>
 
 uint8 ram_mem[RAM_BYTES + VEC_BYTES] = {0};
 uint8 * rom_mem = NULL;
 
-_Noreturn void error (char *prim, char *msg)
+void error (char *prim, char *msg)
 {
     // maximum of 12 bytes, must be nul-terminated
     snprintf(os_AppErr1, 12, "%s:%s", prim, msg); 
     os_ThrowError(OS_E_APPERR1);
 }
 
-_Noreturn void type_error (char *prim, char *type)
+void type_error (char *prim, char *type)
 {
 	// maximum of 12 bytes, must be nul-terminated
     snprintf(os_AppErr2, 12, "%s-%s", prim, type);
@@ -47,8 +48,10 @@ int main (void)
     } else {
         interpreter ();
 
+#ifdef CONFIG_GC_STATISTICS
 #ifdef CONFIG_GC_DEBUG
         printf ("**************** memory needed = %d\n", max_live + 1);
+#endif
 #endif
     }
 

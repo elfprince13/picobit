@@ -29,15 +29,15 @@ void bignum_gc_init()
 
 void bignum_gc_mark()
 {
-	IF_GC_TRACE(printf("bignum_tmp1\n"));
+	IF_GC_TRACE(debug_printf("bignum_tmp1\n"));
 	mark (bignum_tmp1);
-	IF_GC_TRACE(printf("bignum_tmp2\n"));
+	IF_GC_TRACE(debug_printf("bignum_tmp2\n"));
 	mark (bignum_tmp2);
-	IF_GC_TRACE(printf("bignum_tmp3\n"));
+	IF_GC_TRACE(debug_printf("bignum_tmp3\n"));
 	mark (bignum_tmp3);
-	IF_GC_TRACE(printf("bignum_tmp4\n"));
+	IF_GC_TRACE(debug_printf("bignum_tmp4\n"));
 	mark (bignum_tmp4);
-	IF_GC_TRACE(printf("bignum_tmp5\n"));
+	IF_GC_TRACE(debug_printf("bignum_tmp5\n"));
 	mark (bignum_tmp5);
 }
 

@@ -5,63 +5,63 @@
 
 void show_type (obj o)
 {
-	printf("%04x : ", o);
+	debug_printf("%04x : ", o);
 
 	if (o == OBJ_FALSE) {
-		printf("#f");
+		debug_printf("#f");
 	} else if (o == OBJ_TRUE) {
-		printf("#t");
+		debug_printf("#t");
 	} else if (o == OBJ_NULL) {
-		printf("()");
+		debug_printf("()");
 	} else if (o < MIN_ROM_ENCODING) {
-		printf("fixnum");
+		debug_printf("fixnum");
 	} else if (IN_RAM (o)) {
 		if (RAM_BIGNUM_P(o)) {
-			printf("ram bignum");
+			debug_printf("ram bignum");
 		} else if (RAM_PAIR_P(o)) {
-			printf("ram pair");
+			debug_printf("ram pair");
 		} else if (RAM_SYMBOL_P(o)) {
-			printf("ram symbol");
+			debug_printf("ram symbol");
 		} else if (RAM_STRING_P(o)) {
-			printf("ram string");
+			debug_printf("ram string");
 		} else if (RAM_VECTOR_P(o)) {
-			printf("ram vector");
+			debug_printf("ram vector");
 		} else if (RAM_CONTINUATION_P(o)) {
-			printf("ram continuation");
+			debug_printf("ram continuation");
 		} else if (RAM_CLOSURE_P(o)) {
-			printf("ram closure");
+			debug_printf("ram closure");
 		}
 	} else { // ROM
 		if (ROM_BIGNUM_P(o)) {
-			printf("rom bignum");
+			debug_printf("rom bignum");
 		} else if (ROM_PAIR_P(o)) {
-			printf("rom pair");
+			debug_printf("rom pair");
 		} else if (ROM_SYMBOL_P(o)) {
-			printf("rom symbol");
+			debug_printf("rom symbol");
 		} else if (ROM_STRING_P(o)) {
-			printf("rom string");
+			debug_printf("rom string");
 		} else if (ROM_VECTOR_P(o)) {
-			printf("rom vector");
+			debug_printf("rom vector");
 		} else if (ROM_CONTINUATION_P(o)) {
-			printf("rom continuation");
+			debug_printf("rom continuation");
 		}
 
 		// ROM closures don't exist
 	}
 
-	printf("\n");
+	debug_printf("\n");
 }
 
 void show_obj (obj o)
 {
 	if (o == OBJ_FALSE) {
-		printf ("#f");
+		debug_printf ("#f");
 	} else if (o == OBJ_TRUE) {
-		printf ("#t");
+		debug_printf ("#t");
 	} else if (o == OBJ_NULL) {
-		printf ("()");
+		debug_printf ("()");
 	} else if (o <= (MIN_FIXNUM_ENCODING + (MAX_FIXNUM - MIN_FIXNUM))) {
-		printf ("%d", DECODE_FIXNUM(o));
+		debug_printf ("%d", DECODE_FIXNUM(o));
 	} else {
 		uint8 in_ram;
 
@@ -72,7 +72,7 @@ void show_obj (obj o)
 		}
 
 		if ((in_ram && RAM_BIGNUM_P(o)) || (!in_ram && ROM_BIGNUM_P(o))) { // TODO fix for new bignums, especially for the sign, a -5 is displayed as 251
-			printf ("%d", decode_int (o));
+			debug_printf ("%d", decode_int (o));
 		} else if ((in_ram && RAM_COMPOSITE_P(o)) || (!in_ram && ROM_COMPOSITE_P(o))) {
 			obj car;
 			obj cdr;
@@ -86,13 +86,13 @@ void show_obj (obj o)
 					cdr = rom_get_cdr (o);
 				}
 
-				printf ("(");
+				debug_printf ("(");
 
 loop:
 				show_obj (car);
 
 				if (cdr == OBJ_NULL) {
-					printf (")");
+					debug_printf (")");
 				} else if ((IN_RAM(cdr) && RAM_PAIR_P(cdr))
 					   || (IN_ROM(cdr) && ROM_PAIR_P(cdr))) {
 					if (IN_RAM(cdr)) {
@@ -103,21 +103,21 @@ loop:
 						cdr = rom_get_cdr (cdr);
 					}
 
-					printf (" ");
+					debug_printf (" ");
 					goto loop;
 				} else {
-					printf (" . ");
+					debug_printf (" . ");
 					show_obj (cdr);
-					printf (")");
+					debug_printf (")");
 				}
 			} else if ((in_ram && RAM_SYMBOL_P(o)) || (!in_ram && ROM_SYMBOL_P(o))) {
-				printf ("#<symbol>");
+				debug_printf ("#<symbol %03X>", o & 0xff);
 			} else if ((in_ram && RAM_STRING_P(o)) || (!in_ram && ROM_STRING_P(o))) {
-				printf ("#<string>");
+				debug_printf ("#<string %03X>", o & 0xff);
 			} else if ((in_ram && RAM_VECTOR_P(o)) || (!in_ram && ROM_VECTOR_P(o))) {
-				printf ("#<vector %d>", o);
+				debug_printf ("#<vector %d>", o);
 			} else {
-				printf ("(");
+				debug_printf ("(");
 				cdr = ram_get_car (o);
 				car = ram_get_cdr (o);
 				// ugly hack, takes advantage of the fact that pairs and
@@ -131,9 +131,9 @@ loop:
 			env = ram_get_car (o);
 			pc = ram_get_entry (o);
 
-			printf ("{0x%04x ", pc);
+			debug_printf ("{0x%04x ", pc);
 			show_obj (env);
-			printf ("}");
+			debug_printf ("}");
 		}
 	}
 
@@ -141,11 +141,11 @@ loop:
 }
 
 void show_state (rom_addr pc) {
-	printf ("\n");
-	printf ("pc=0x%04x bytecode=0x%02x env=", pc, rom_get (pc));
+	debug_printf ("\n");
+	debug_printf ("pc=0x%04x bytecode=0x%02x env=", pc, rom_get (pc));
 	show_obj (env);
-	printf (" cont=");
+	debug_printf (" cont=");
 	show_obj (cont);
-	printf ("\n");
+	debug_printf ("\n");
 	fflush (stdout);
 }

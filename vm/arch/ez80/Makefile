@@ -2,7 +2,8 @@ ifdef_any_of = $(filter-out undefined,$(foreach v,$(1),$(origin $(v))))
 
 ifneq ($(call ifdef_any_of,CONFIG_VM_DEBUG CONFIG_GC_DEBUG),)
 DEBUGMODE = DEBUG
-CCDEBUG = -gdwarf-5 -g3
+# there appears to be an issue where app_tools isn't setting up debug_frame properly?
+CCDEBUG = -g0 #-gdwarf-5 -g3
 LDDEBUG = 1
 else
 DEBUGMODE = NDEBUG
@@ -16,6 +17,11 @@ ON_CALC_DESC := "A small Scheme dialect"
 CEDEV := $(shell cedev-config --prefix)
 
 CFLAGS += -MD -c -emit-llvm -nostdinc -isystem $(CEDEV)/include -fno-threadsafe-statics -Xclang -fforce-mangle-main-argc-argv -mllvm -profile-guided-section-prefix=false -D$(DEBUGMODE) $(CCDEBUG) -Wall -Wextra -Oz
+
+ifdef CONFIG_CUSTOM_DEBUG_PRINTF
+CFLAGS += -D"debug_printf(...)=sprintf(((char*)0xFB0000),\#\#__VA_ARGS__)"
+endif
+
 arch-y   += entry.c primitives.c
 stdlib-y += stdlib.scm
 
@@ -45,7 +51,7 @@ rustle.8ek: picobit-vm.bin
 
 picobit-vm.bin: picobit-vm.src icon.src linker_script
 	$(CEDEV)/bin/fasmg -n '$(CEDEV)/meta/ld.alm'\
-		-i 'DEBUG := 0' -i 'HAS_PRINTF := 1' -i 'HAS_LIBC := 1' -i 'HAS_LIBCXX := 0' -i 'PREFER_OS_CRT := 0' -i 'PREFER_OS_LIBC := 1' -i 'ALLOCATOR_STANDARD := 1'\
+		-i 'DEBUG := $(LDDEBUG)' -i 'HAS_PRINTF := 1' -i 'HAS_LIBC := 1' -i 'HAS_LIBCXX := 0' -i 'PREFER_OS_CRT := 0' -i 'PREFER_OS_LIBC := 1' -i 'ALLOCATOR_STANDARD := 1'\
 		-i 'include "linker_script"'\
 		-i 'range .bss $$D052C6 : $$D13FD8' -i 'provide __stack = $$D1A87E' -i 'locate .header at $$0'\
 		-i 'provide __app_name = $(ON_CALC_NAME)'  -i 'provide __app_version = "0"' -i 'provide __app_desc = $(ON_CALC_DESC)'\

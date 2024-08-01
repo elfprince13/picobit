@@ -59,58 +59,58 @@ push:
 		stack = visit;
 		visit = temp;
 
-		IF_GC_TRACE(printf ("push   stack=%d  visit=%d (tag=%d)\n", stack, visit, ram_get_gc_tags (visit)>>5));
+		IF_GC_TRACE(debug_printf ("push   stack=%d  visit=%d (tag=%d)\n", stack, visit, ram_get_gc_tags (visit)>>5));
 
 		if ((HAS_1_OBJECT_FIELD (visit) && ram_get_gc_tag0 (visit))
 		    || (HAS_2_OBJECT_FIELDS (visit)
 		        && (ram_get_gc_tags (visit) != GC_TAG_UNMARKED))) {
-			IF_GC_TRACE(printf ("case 1\n"));
+			IF_GC_TRACE(debug_printf ("case 1\n"));
 		} else {
 			if (HAS_2_OBJECT_FIELDS(visit)) { // pairs and continuations
-				IF_GC_TRACE(printf ("case 2\n"));
+				IF_GC_TRACE(debug_printf ("case 2\n"));
 
 				temp = ram_get_cdr (visit);
 
 				if (IN_RAM(temp)) {
-					IF_GC_TRACE(printf ("case 3\n"));
+					IF_GC_TRACE(debug_printf ("case 3\n"));
 					ram_set_gc_tags (visit, GC_TAG_1_LEFT);
 					ram_set_cdr (visit, stack);
 					goto push;
 				}
 
-				IF_GC_TRACE(printf ("case 4\n"));
+				IF_GC_TRACE(debug_printf ("case 4\n"));
 
 				goto visit_field1;
 			}
 
 			if (HAS_1_OBJECT_FIELD(visit)) {
-				IF_GC_TRACE(printf ("case 5\n"));
+				IF_GC_TRACE(debug_printf ("case 5\n"));
 
 visit_field1:
 				temp = ram_get_car (visit);
 
 				if (IN_RAM(temp)) {
-					IF_GC_TRACE(printf ("case 6\n"));
+					IF_GC_TRACE(debug_printf ("case 6\n"));
 					ram_set_gc_tag0 (visit, GC_TAG_0_LEFT);
 					ram_set_car (visit, stack);
 
 					goto push;
 				}
 
-				IF_GC_TRACE(printf ("case 7\n"));
+				IF_GC_TRACE(debug_printf ("case 7\n"));
 			} else {
-				IF_GC_TRACE(printf ("case 8\n"));
+				IF_GC_TRACE(debug_printf ("case 8\n"));
 			}
 
 			ram_set_gc_tag0 (visit, GC_TAG_0_LEFT);
 		}
 
 pop:
-		IF_GC_TRACE(printf ("pop    stack=%d  visit=%d (tag=%d)\n", stack, visit, ram_get_gc_tags (visit)>>6));
+		IF_GC_TRACE(debug_printf ("pop    stack=%d  visit=%d (tag=%d)\n", stack, visit, ram_get_gc_tags (visit)>>6));
 
 		if (stack != OBJ_FALSE) {
 			if (HAS_2_OBJECT_FIELDS(stack) && ram_get_gc_tag1 (stack)) {
-				IF_GC_TRACE(printf ("case 9\n"));
+				IF_GC_TRACE(debug_printf ("case 9\n"));
 
 				temp = ram_get_cdr (stack);  /* pop through cdr */
 				ram_set_cdr (stack, visit);
@@ -123,7 +123,7 @@ pop:
 				goto visit_field1;
 			}
 
-			IF_GC_TRACE(printf ("case 11\n"));
+			IF_GC_TRACE(debug_printf ("case 11\n"));
 
 			temp = ram_get_car (stack);  /* pop through car */
 			ram_set_car (stack, visit);
@@ -193,26 +193,26 @@ void gc ()
 {
 	uint8 i;
 
-	IF_TRACE(printf("\nGC BEGINS\n"));
+	IF_TRACE(debug_printf("\nGC BEGINS\n"));
 
-	IF_GC_TRACE(printf("arg1\n"));
+	IF_GC_TRACE(debug_printf("arg1\n"));
 	mark (arg1);
-	IF_GC_TRACE(printf("arg2\n"));
+	IF_GC_TRACE(debug_printf("arg2\n"));
 	mark (arg2);
-	IF_GC_TRACE(printf("arg3\n"));
+	IF_GC_TRACE(debug_printf("arg3\n"));
 	mark (arg3);
-	IF_GC_TRACE(printf("arg4\n"));
+	IF_GC_TRACE(debug_printf("arg4\n"));
 	mark (arg4);
-	IF_GC_TRACE(printf("cont\n"));
+	IF_GC_TRACE(debug_printf("cont\n"));
 	mark (cont);
-	IF_GC_TRACE(printf("env\n"));
+	IF_GC_TRACE(debug_printf("env\n"));
 	mark (env);
 
 #ifdef CONFIG_BIGNUM_LONG
 	bignum_gc_mark();
 #endif
 
-	IF_GC_TRACE(printf("globals\n"));
+	IF_GC_TRACE(debug_printf("globals\n"));
 
 	for (i=0; i<glovars; i++) {
 		mark (get_global (i));

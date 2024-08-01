@@ -194,8 +194,10 @@ int main (int argc, char *argv[])
 		} else if (argc == 2) {
 			interpreter ();
 
+#ifdef CONFIG_GC_STATISTICS
 #ifdef CONFIG_GC_DEBUG
-			printf ("**************** memory needed = %d\n", max_live + 1);
+        printf ("**************** memory needed = %d\n", max_live + 1);
+#endif
 #endif
 		} else {
 			fwrite(rom_mem, 1, ROM_BYTES, stdout);

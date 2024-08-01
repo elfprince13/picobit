@@ -14,7 +14,7 @@ typedef uint16 rom_addr;
 
 typedef uint16 obj; /* Only 13 bits are used in pointers */
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__clang__)
 #define NORETURN __attribute__((noreturn))
 #else
 #define NORETURN

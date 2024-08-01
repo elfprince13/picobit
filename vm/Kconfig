@@ -25,6 +25,8 @@ choice
 		bool "eZ80 microcontrollers"
 		select ARCH_16BIT
 		select ERROR_HANDLING
+		select DEBUG_STRINGS
+		select CUSTOM_DEBUG_PRINTF
 endchoice
 
 config ERROR_HANDLING

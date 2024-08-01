@@ -19,6 +19,11 @@ choice
 		  functions.
 endchoice
 
+config CUSTOM_DEBUG_PRINTF
+	bool "Arch implements a debug_printf function"
+	help
+		Archs which provide this should select the option.
+
 config VM_DEBUG
 	bool "Debug virtual machine"
 	help
