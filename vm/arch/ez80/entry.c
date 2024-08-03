@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,8 +11,37 @@
 #include <fileioc.h>
 #include <debug.h>
 
+#define os_UserMem ((void*)0xD1A881)
+
 uint8 ram_mem[RAM_BYTES + VEC_BYTES] = {0};
 uint8 * rom_mem = NULL;
+
+void* bump_malloc(const size_t size) {
+    void* result = (os_UserMem + os_AsmPrgmSize);
+    
+    size_t bytesAvail = 0;
+    asm volatile (
+        "call\t0204FCh\n" // MemC
+        : "=l" (bytesAvail)
+        :
+        : "c"
+    );
+
+    if (bytesAvail >= size) {
+
+        asm volatile (
+            "call\t020514h\n" // InsertMem
+            : "=e" (result) // output - must use lower byte name for registers
+            : "e"(size), "l"(result) // input - must use lower byte name for registers
+            : "a", "c", "cc", "memory" // clobbers - must use lower byte name for registers (except a. cc is flags) - presumably "l" should also be here but clang doesn't like that because it's an input?
+        );
+
+        os_AsmPrgmSize += size;
+        return result;
+    } else {
+        return NULL;
+    }
+}
 
 void error (char *prim, char *msg)
 {
