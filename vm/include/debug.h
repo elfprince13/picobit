@@ -13,6 +13,12 @@
 #endif
 #define debug_printf printf
 #endif
+#else
+#ifdef debug_printf
+#undef debug_printf
+#else
+#define debug_printf(x)
+#endif
 #endif
 
 #ifdef CONFIG_VM_DEBUG
