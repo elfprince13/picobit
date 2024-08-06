@@ -68,17 +68,22 @@ void* bump_malloc(const size_t size) {
 }
 
 void bump_free(void * ptr) {
+    debug_printf("bump_free called on %p\n", ptr);
     const void * curCeiling = (os_UserMem + os_AsmPrgmSize);
     if (ptr < curCeiling) {
         if (ptr >= (os_UserMem + bumpFloor)) {
             const size_t size = curCeiling - ptr;
+            debug_printf("Attempting to release %zu = %p - %p bytes\n", size, curCeiling, ptr);
+            //size_t actualDel;
+            os_AsmPrgmSize -= size;
             asm volatile (
-                "call\t020590h\n" // DelMem
-                : 
+                "call\t020580h\n" // DelMemA - DelMem appears to just be a redirect?
+                : //"=e"(size), "=c"(actualDel)
                 : "l"(ptr), "e"(size)
                 : "a", "c", "cc", "memory"
             );
-            os_AsmPrgmSize -= size;
+            //debug_printf("DelMem released %zu / %zu bytes\n", actualDel, size);
+            //assert(size == actualDel);
         } else {
             error("bump", "bad free");
         }
@@ -144,7 +149,6 @@ int main (void)
         rom_get (CODE_START+1) != 0xd7) {
         printf ("*** The hex file was not compiled with PICOBIT\n");
     } else {
-        SET_FUNC_BREAKPOINT(show_state);
         interpreter ();
 
 #ifdef CONFIG_GC_STATISTICS
@@ -159,6 +163,9 @@ int main (void)
         rom_mem = NULL;
         bump_free(cleanup);
     }
+    
+    debug_printf("Exiting Rustle\n");
+
 
 	return errcode;
 }
