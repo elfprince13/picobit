@@ -2,7 +2,9 @@
 #define PICOBIT_BIGNUM_H
 
 #include <picobit.h>
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 uint16 decode_int (obj o);
 obj encode_int (uint16 n);
 
@@ -51,5 +53,7 @@ void bignum_gc_init();
 void bignum_gc_mark();
 
 #endif
-
+#ifdef __cplusplus
+}
+#endif
 #endif

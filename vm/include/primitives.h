@@ -1,6 +1,8 @@
 #ifndef PICOBIT_PRIMITIVES_H
 #define PICOBIT_PRIMITIVES_H
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #ifdef CONFIG_DEBUG_STRINGS
 extern const char* const primitive_names[];
 #endif /* CONFIG_DEBUG_STRINGS */
@@ -20,5 +22,7 @@ extern obj a1, a2, a3;
 
 void decode_2_int_args ();
 void push_arg1 ();
-
+#ifdef __cplusplus
+}
+#endif
 #endif

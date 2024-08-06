@@ -1,6 +1,8 @@
 #ifndef PICOBIT_GC_H
 #define PICOBIT_GC_H
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* TODO explain what each tag means, with 1-2 mark bits.
    Currently, they're described in IFL paper. */
 #define GC_TAG_0_LEFT   (1<<5)
@@ -50,5 +52,7 @@ void gc ();
 obj alloc_ram_cell ();
 obj alloc_ram_cell_init (uint8 f0, uint8 f1, uint8 f2, uint8 f3);
 obj alloc_vec_cell (uint16 n, obj from);
-
+#ifdef __cplusplus
+}
+#endif
 #endif

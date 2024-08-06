@@ -26,7 +26,9 @@
  */
 
 #include <arch/memory.h>
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define MAX_VEC_ENCODING 8191
 #define MIN_VEC_ENCODING 0
 #define VEC_BYTES ((MAX_VEC_ENCODING - MIN_VEC_ENCODING + 1)*4)
@@ -186,5 +188,7 @@ obj ram_get_entry (obj o);
 
 obj get_global (uint8 i);
 void set_global (uint8 i, obj o);
-
+#ifdef __cplusplus
+}
+#endif
 #endif

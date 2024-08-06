@@ -80,7 +80,7 @@ include/arch: include/config/auto.conf
 	@ln -sf ../$(arch)/include/ include/arch
 
 CROSS  := $(call unquote,$(CONFIG_CROSS_COMPILER))
-CFLAGS := -Iinclude/ -DPICOBIT -Wall -Werror -Os --std=gnu11
+CFLAGS := -Iinclude/ -DPICOBIT -Wall -Werror -Os -std=gnu11
 
 arch  = arch/$(call unquote,$(CONFIG_ARCH))
 # Some linkers may have trouble with this order. Put arch first if
@@ -100,7 +100,7 @@ prim-gen = gawk -f scripts/scanner.awk -f scripts/prim-$(1).awk \
 
 .primitives.p: include/arch $(obj-y)
 	rm -f $@
-	for object in $(obj-y); do \
+	for object in $(filter %.c,$(obj-y)); do \
 		$(CROSS)clang-cpp -DNO_PRIMITIVE_EXPAND $(CFLAGS) \
 			$$object -o - >>$@; \
 	done

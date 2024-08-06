@@ -1,6 +1,8 @@
 #ifndef PICOBIT_OBJECT_H
 #define PICOBIT_OBJECT_H
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 /*
   OBJECT ENCODING:
 
@@ -219,5 +221,7 @@ uint8 RAM_CLOSURE_P(uint16 o)
 #else
 #define RAM_CLOSURE_P(o) ((ram_get_field0 (o) & 0xc0) == CLOSURE_FIELD0)
 #endif
-
+#ifdef __cplusplus
+}
+#endif
 #endif

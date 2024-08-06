@@ -1,10 +1,11 @@
 #ifndef PICOBIT_PICOBIT_H
 #define PICOBIT_PICOBIT_H
-
 #include <generated/autoconf.h>
 
 #include <arch/types.h>
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* Picobit complex types */
 
 typedef uint8 word;
@@ -37,8 +38,8 @@ extern uint8 glovars;
 
 #define ERROR(prim, msg) error (prim, msg)
 #define TYPE_ERROR(prim, type) type_error (prim, type)
-void error (char *prim, char *msg) NORETURN;
-void type_error (char *prim, char *type) NORETURN;
+void error (const char *prim, const char *msg) NORETURN;
+void type_error (const char *prim, const char *type) NORETURN;
 
 #else
 
@@ -47,5 +48,7 @@ void halt_with_error () NORETURN;
 #define TYPE_ERROR(prim, type) halt_with_error()
 
 #endif /* CONFIG_ERROR_HANDLING */
-
+#ifdef __cplusplus
+}
+#endif
 #endif

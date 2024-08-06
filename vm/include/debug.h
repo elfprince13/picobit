@@ -34,13 +34,18 @@
 #endif
 
 #ifdef CONFIG_DEBUG_STRINGS
+#ifdef __cplusplus
+extern "C" {
+#endif
 void show_type (obj o);
 void show_obj (obj o);
 void show_state (rom_addr pc);
+#ifdef __cplusplus
+}
+#endif
 #else
 #define show_type(o)
 #define show_obj(o)
 #define show_state(pc)
 #endif
-
 #endif

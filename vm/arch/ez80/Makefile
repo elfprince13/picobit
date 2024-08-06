@@ -22,20 +22,27 @@ ifdef CONFIG_CUSTOM_DEBUG_PRINTF
 CFLAGS += -D"debug_printf(...)=sprintf(((char*)0xFB0000),\#\#__VA_ARGS__)"
 endif
 
-arch-y   += entry.c primitives.c
+CXXFLAGS = $(subst -nostdinc, -nostdinc++, $(subst -std=gnu11, -std=gnu++17, $(CFLAGS))) -isystem $(CEDEV)/include/c++
+
+# only .c extensions will be preprocessed into .primitives.p
+arch-y   += entry.cpp primitives.c
 stdlib-y += stdlib.scm
 
 load-address := \#x0000
 
 arch-all: rustle.8ek
 
-llvm-y = $(addsuffix .bc,$(obj-y))
+llvm-c-y = $(addsuffix .bc,$(filter %.c,$(obj-y)))
+llvm-cpp-y = $(addsuffix .bc,$(filter %.cpp,$(obj-y)))
 
-$(llvm-y): %.c.bc: %.c .config
+$(llvm-c-y): %.c.bc: %.c .config
 	$(CROSS)clang $(CFLAGS) $< -o $@
 
-picobit-vm.bc: $(llvm-y) .config
-	$(CROSS)link $(llvm-y) -o $@
+$(llvm-cpp-y): %.cpp.bc: %.cpp .config
+	$(CROSS)clang $(CXXFLAGS) $< -o $@
+
+picobit-vm.bc: $(llvm-c-y) $(llvm-cpp-y) .config
+	$(CROSS)link $(llvm-c-y) $(llvm-cpp-y) -o $@
 
 linker_script: arch/ez80/deps/app_tools/linker_script
 	CEDEV=$(CEDEV) APP_TOOLS_INSTALL_DIR=arch/ez80/deps/app_tools envsubst < arch/ez80/deps/app_tools/linker_script > linker_script
@@ -51,7 +58,7 @@ rustle.8ek: picobit-vm.bin
 
 picobit-vm.bin: picobit-vm.src icon.src linker_script
 	$(CEDEV)/bin/fasmg -n '$(CEDEV)/meta/ld.alm'\
-		-i 'DEBUG := $(LDDEBUG)' -i 'HAS_PRINTF := 1' -i 'HAS_LIBC := 1' -i 'HAS_LIBCXX := 0' -i 'PREFER_OS_CRT := 0' -i 'PREFER_OS_LIBC := 1' -i 'ALLOCATOR_STANDARD := 1'\
+		-i 'DEBUG := $(LDDEBUG)' -i 'HAS_PRINTF := 1' -i 'HAS_LIBC := 1' -i 'HAS_LIBCXX := 1' -i 'PREFER_OS_CRT := 0' -i 'PREFER_OS_LIBC := 1' -i 'ALLOCATOR_STANDARD := 1'\
 		-i 'include "linker_script"'\
 		-i 'range .bss $$D052C6 : $$D13FD8' -i 'provide __stack = $$D1A87E' -i 'locate .header at $$0'\
 		-i 'provide __app_name = $(ON_CALC_NAME)'  -i 'provide __app_version = "0"' -i 'provide __app_desc = $(ON_CALC_DESC)'\

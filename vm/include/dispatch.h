@@ -3,7 +3,9 @@
 
 #include <arch/types.h>
 #include <heap.h>
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define FETCH_NEXT_BYTECODE() bytecode = rom_get (pc++)
 
 #define PUSH_CONSTANT1     0x0
@@ -31,5 +33,7 @@ uint8 handle_arity_and_rest_param (uint8 na);
 void build_env (uint8 na);
 void save_cont ();
 void interpreter ();
-
+#ifdef __cplusplus
+}
+#endif
 #endif

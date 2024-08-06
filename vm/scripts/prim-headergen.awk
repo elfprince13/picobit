@@ -2,6 +2,9 @@ END {
 	print "#include <picobit.h>"
 	print "#include <primitives.h>"
 	print ""
+	print "#ifdef __cplusplus"
+	print "extern \"C\" {"
+	print "#endif"
 	print "#ifdef CONFIG_DEBUG_STRINGS"
 	print "const char* const primitive_names[] = {"
 
@@ -10,5 +13,8 @@ END {
 	}
 
 	print "};"
+	print "#ifdef __cplusplus"
+	print "}"
+	print "#endif"
 	print "#endif /* CONFIG_DEBUG_STRINGS */"
 }

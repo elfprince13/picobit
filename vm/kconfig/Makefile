@@ -1,7 +1,7 @@
 CC := clang
 # removed a -s here because stripping needs to be run separately now
 LDFLAGS := -L/opt/local/lib -lintl
-CFLAGS := -g -O2 --std=gnu11 -Wall -I/opt/local/include
+CFLAGS := -g -O2 -std=gnu11 -Wall -I/opt/local/include
 
 all: conf nconf
 
