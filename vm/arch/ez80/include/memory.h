@@ -1,7 +1,7 @@
 #ifndef PICOBIT_ARCH_EZ80_MEMORY_H
 #define PICOBIT_ARCH_EZ80_MEMORY_H
 
-#define CODE_START 0x8000
+#define CODE_START 0x0000
 
 extern uint8 ram_mem[];
 #define ram_get(a) ram_mem[a]

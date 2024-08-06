@@ -25,7 +25,7 @@ endif
 arch-y   += entry.c primitives.c
 stdlib-y += stdlib.scm
 
-load-address := \#x8000
+load-address := \#x0000
 
 arch-all: rustle.8ek
 

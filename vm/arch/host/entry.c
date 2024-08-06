@@ -188,6 +188,7 @@ int main (int argc, char *argv[])
 	if (!read_hex_file (argv[1])) {
 		printf ("*** Could not read hex file \"%s\"\n", argv[1]);
 	} else {
+		fprintf(stderr, "Loading ROM\n");
 		if (rom_get (CODE_START+0) != 0xfb ||
 		    rom_get (CODE_START+1) != 0xd7) {
 			printf ("*** The hex file was not compiled with PICOBIT\n");
@@ -200,6 +201,7 @@ int main (int argc, char *argv[])
 #endif
 #endif
 		} else {
+			fprintf(stderr, "Saving ROM\n");
 			fwrite(rom_mem, 1, ROM_BYTES, stdout);
 		}
 	}

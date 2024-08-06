@@ -13,6 +13,24 @@
 
 #define os_UserMem ((void*)0xD1A881)
 
+#define ENTER_DEBUGGER() asm volatile (\
+        "scf\n"\
+        "sbc\thl,hl\n"\
+        "ld     (hl),2"\
+        :\
+        :\
+        : "l"\
+    )
+
+#define SET_FUNC_BREAKPOINT(func) asm volatile (\
+        "scf\n"\
+        "sbc\thl,hl\n"\
+        "ld     (hl),3"\
+        :\
+        : "e"(&func)\
+        : "l"\
+    )
+
 uint8 ram_mem[RAM_BYTES + VEC_BYTES] = {0};
 uint8 * rom_mem = NULL;
 
@@ -37,13 +55,14 @@ void* bump_malloc(const size_t size) {
         asm volatile (
             "call\t020514h\n" // InsertMem
             : "=e" (result) // output - must use lower byte name for registers
-            : "e"(size), "l"(result) // input - must use lower byte name for registers
+            : "e"(result), "l"(size) // input - must use lower byte name for registers
             : "a", "c", "cc", "memory" // clobbers - must use lower byte name for registers (except a. cc is flags) - presumably "l" should also be here but clang doesn't like that because it's an input?
         );
         debug_printf("Updating reserved os_AsmPrgmSize\n");
         os_AsmPrgmSize += size;
         return result;
     } else {
+        debug_printf("Not enough memory!\n");
         return NULL;
     }
 }
@@ -95,6 +114,7 @@ void type_error (char *prim, char *type)
 int main (void)
 {
     bumpFloor = os_AsmPrgmSize; // must happen before any calls to bump_free / bump_malloc;
+
     debug_printf("bump floor: %zu\n", bumpFloor);
 	int errcode = 0;
     {
@@ -102,14 +122,16 @@ int main (void)
         const uint8_t romHandle = ti_Open("RustlROM", "r");
         if (romHandle != 0) {
             const size_t codeSize = ti_GetSize(romHandle);
+            debug_printf("Opened ROM: %zu bytes\n", codeSize);
             if (codeSize > ROM_BYTES) {
                 ti_Close(romHandle);
                 error("<main>", "ROM size");
             } else {
-                // this isn't safe if we add support for manipulating TI-OS vars
                 rom_mem = bump_malloc(ROM_BYTES);
-                
-                memcpy(rom_mem, ti_GetDataPtr(romHandle), codeSize);
+                const void* progData = ti_GetDataPtr(romHandle);
+                debug_printf("Copying %zu bytes from program (%p) to ROM (%p)\n", codeSize, progData, (void*)rom_mem);
+                memcpy(rom_mem, progData, codeSize);
+                debug_printf("Setting remaing %zu bytes at %p to 0xff\n", (ROM_BYTES - codeSize), (void*)(rom_mem + codeSize));
                 memset(rom_mem + codeSize, 0xff, ROM_BYTES - codeSize);
                 ti_Close(romHandle);
             }
@@ -122,6 +144,7 @@ int main (void)
         rom_get (CODE_START+1) != 0xd7) {
         printf ("*** The hex file was not compiled with PICOBIT\n");
     } else {
+        SET_FUNC_BREAKPOINT(show_state);
         interpreter ();
 
 #ifdef CONFIG_GC_STATISTICS
