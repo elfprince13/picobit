@@ -22,7 +22,7 @@ ifdef CONFIG_CUSTOM_DEBUG_PRINTF
 CFLAGS += -D"debug_printf(...)=sprintf(((char*)0xFB0000),\#\#__VA_ARGS__)"
 endif
 
-CXXFLAGS = $(subst -nostdinc, -nostdinc++, $(subst -std=gnu11, -std=gnu++17, $(CFLAGS))) -isystem $(CEDEV)/include/c++
+CXXFLAGS = $(subst -nostdinc, -nostdinc++, $(subst -std=gnu11, -std=gnu++17, $(CFLAGS))) -isystem $(CEDEV)/include/c++ -fno-exceptions -fno-rtti
 
 # only .c extensions will be preprocessed into .primitives.p
 arch-y   += entry.cpp primitives.c
@@ -43,6 +43,9 @@ $(llvm-cpp-y): %.cpp.bc: %.cpp .config
 
 picobit-vm.bc: $(llvm-c-y) $(llvm-cpp-y) .config
 	$(CROSS)link $(llvm-c-y) $(llvm-cpp-y) -o $@
+
+picobit-vm.ll: picobit-vm.bc
+	$(CROSS)clang -emit-llvm -c -S -mllvm -profile-guided-section-prefix=false -Wall -Wextra -Oz picobit-vm.bc -o $@
 
 linker_script: arch/ez80/deps/app_tools/linker_script
 	CEDEV=$(CEDEV) APP_TOOLS_INSTALL_DIR=arch/ez80/deps/app_tools envsubst < arch/ez80/deps/app_tools/linker_script > linker_script

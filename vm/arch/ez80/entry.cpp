@@ -3,6 +3,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+//#include <exception>
+//#include <new>
+//#include <typeinfo>
 
 #include <picobit.h>
 #include <dispatch.h>
@@ -41,13 +44,98 @@
         : "l"\
     )
 
+/*
+class bad_free : public std::exception {
+    const char* what_;
+public:
+    bad_free(const char* what) : what_(what) {}
+    const char* what() const noexcept override {
+        return what_;
+    }
+};
+
+class file_error : public std::exception {
+    const char* what_;
+public:
+    file_error(const char* what) : what_(what) {}
+    const char* what() const noexcept override {
+        return what_;
+    }
+};
+
+class scheme_error : public std::exception {
+    const char* prim_;
+    const char* msg_;
+public:
+    scheme_error(const char* prim, const char* msg) : prim_(prim), msg_(msg) {}
+    const char* what() const noexcept override {
+        return "Error from the scheme runtime. Please call .prim() and .msg() if you see this.";
+    }
+
+    const char* prim() const {
+        return prim_;
+    }
+
+    const char* msg() const {
+        return msg_;
+    }
+};
+
+class scheme_type_error : public std::exception {
+    const char* prim_;
+    const char* type_;
+public:
+    scheme_type_error(const char* prim, const char* type) : prim_(prim), type_(type) {}
+    const char* what() const noexcept override {
+        return "Error from the scheme runtime. Please call .prim() and .type() if you see this.";
+    }
+
+    const char* prim() const {
+        return prim_;
+    }
+
+    const char* type() const {
+        return type_;
+    }
+};
+*/
+
+class TIFile {
+    uint8_t handle_;
+public:
+    // just support app vars for now..
+    TIFile(const char* name, const char* mode)
+        : handle_(ti_Open(name, mode))
+    {
+        if(0 == handle_) {
+            std::exit(-1);//throw file_error("ti_Open failed");
+        }
+    }
+
+    TIFile(const TIFile&) = delete;
+    TIFile(TIFile&&) = default;
+    TIFile& operator=(const TIFile&) = delete;
+    TIFile& operator=(TIFile&&) = default;
+
+    ~TIFile() {
+        if(0 != handle_) {
+            ti_Close(handle_);
+        }
+    }
+
+    /// never 0
+    operator uint8_t () const {
+        return handle_;
+    }
+};
+
 extern "C" {
     uint8 ram_mem[RAM_BYTES + VEC_BYTES] = {0};
     uint8 * rom_mem = NULL;
 
     static uint24_t bumpFloor;
 
-    void* bump_malloc(const size_t size) {
+    /*[[nodiscard, __gnu__::__malloc__]]*/ void* bump_malloc(const size_t size) {
         debug_printf("bump_malloc: %zu bytes requested\n", size);
         
         size_t bytesAvail = 0;
@@ -74,7 +162,7 @@ extern "C" {
             return result;
         } else {
             debug_printf("Not enough memory!\n");
-            return NULL;
+            std::exit(-1);//throw std::bad_alloc();
         }
     }
 
@@ -96,35 +184,33 @@ extern "C" {
                 //debug_printf("DelMem released %zu / %zu bytes\n", actualDel, size);
                 //assert(size == actualDel);
             } else {
-                error("bump", "bad free");
+                std::exit(-1);//throw bad_free("bump_free: can't free below the bump floor");
             }
         } else {
-            error("bump", "re-free");
+            std::exit(-1);//throw bad_free("bump_free: can't free above the bump floor (may indicate double free?)");
         }
     }
 
     void error (const char *prim, const char *msg)
     {
-        if (rom_mem != NULL) {
-            void* cleanup = rom_mem;
-            rom_mem = NULL;
-            bump_free(cleanup);
-        }
+        snprintf(os_AppErr1, 12, "%s:%s", prim, msg); 
+        std::exit(-1);//throw scheme_error(prim, msg);
+        /*
         // maximum of 12 bytes, must be nul-terminated
         snprintf(os_AppErr1, 12, "%s:%s", prim, msg); 
         os_ThrowError(OS_E_APPERR1);
+        */
     }
 
     void type_error (const char *prim, const char *type)
     {
-        if (rom_mem != NULL) {
-            void* cleanup = rom_mem;
-            rom_mem = NULL;
-            bump_free(cleanup);
-        }
+        snprintf(os_AppErr2, 12, "%s-%s", prim, type);
+        std::exit(-1);//throw scheme_type_error(prim, type);
+        /*
         // maximum of 12 bytes, must be nul-terminated
         snprintf(os_AppErr2, 12, "%s-%s", prim, type);
         os_ThrowError(OS_E_APPERR2);
+        */
     }
 }
 
@@ -137,14 +223,13 @@ int main (void)
 
     debug_printf("bump floor: %zu\n", bumpFloor);
 	int errcode = 0;
-    {
-        // find the ROM address ( in RAM other otherwise ;) )
-        const uint8_t romHandle = ti_Open("RustlROM", "r");
-        if (romHandle != 0) {
+    /*try*/ {
+        {
+            // find the ROM address ( in RAM other otherwise ;) )
+            const TIFile romHandle{"RustlROM", "r"};
             const size_t codeSize = ti_GetSize(romHandle);
             debug_printf("Opened ROM: %zu bytes\n", codeSize);
             if (codeSize > ROM_BYTES) {
-                ti_Close(romHandle);
                 error("<main>", "ROM size");
             } else {
                 rom_mem = reinterpret_cast<uint8 *>(bump_malloc(ROM_BYTES));
@@ -153,34 +238,34 @@ int main (void)
                 memcpy(rom_mem, progData, codeSize);
                 debug_printf("Setting remaing %zu bytes at %p to 0xff\n", (ROM_BYTES - codeSize), (void*)(rom_mem + codeSize));
                 memset(rom_mem + codeSize, 0xff, ROM_BYTES - codeSize);
-                ti_Close(romHandle);
             }
-        } else {
-            error("<main>", "ROM fail");
         }
-    }
 
-    if (rom_get (CODE_START+0) != 0xfb ||
-        rom_get (CODE_START+1) != 0xd7) {
-        printf ("*** The hex file was not compiled with PICOBIT\n");
-    } else {
-        interpreter ();
+        if (rom_get (CODE_START+0) != 0xfb ||
+            rom_get (CODE_START+1) != 0xd7) {
+            printf ("*** The hex file was not compiled with PICOBIT\n");
+        } else {
+            interpreter ();
 
 #ifdef CONFIG_GC_STATISTICS
 #ifdef CONFIG_GC_DEBUG
-        printf ("**************** memory needed = %d\n", max_live + 1);
+            printf ("**************** memory needed = %d\n", max_live + 1);
 #endif
 #endif
-    }
+        }
 
-    if (rom_mem != NULL) {
-        void* cleanup = rom_mem;
-        rom_mem = NULL;
-        bump_free(cleanup);
-    }
-    
+        if (rom_mem != NULL) {
+            void* cleanup = rom_mem;
+            rom_mem = NULL;
+            bump_free(cleanup);
+        }
+    }/* catch (const std::exception &e) {
+        debug_printf("Caught %s: %s\n", typeid(e).name(), e.what());
+    } catch(...) {
+        debug_printf("Caught unknown object - not an exception. Yikes!\n");
+    }*/
+
     debug_printf("Exiting Rustle\n");
-
 
 	return errcode;
 }
