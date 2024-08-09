@@ -133,7 +133,8 @@ public:
 
 extern "C" {
     uint8 ram_mem[RAM_BYTES + VEC_BYTES] = {0};
-    BumpPointer<uint8> rom_mem = NULL;
+    //BumpPointer<uint8> rom_mem = NULL;
+    uint8* rom_mem = NULL;
 
     static uint24_t bumpFloor;
 
@@ -226,6 +227,7 @@ int main ()
     debug_printf("bump floor: %zu\n", bumpFloor);
 	int errcode = 0;
     /*try*/ {
+        BumpPointer<uint8> romManager;
         {
             // find the ROM address ( in RAM other otherwise ;) )
             const TIFile romHandle{"RustlROM", "r"};
@@ -234,13 +236,14 @@ int main ()
             if (codeSize > ROM_BYTES) {
                 error("<main>", "ROM size");
             } else {
-                rom_mem = BumpPointer<uint8>(ROM_BYTES);
+                romManager = BumpPointer<uint8>(ROM_BYTES);
+                rom_mem = romManager.get();
                 //rom_mem = BumpPointer<uint8>(182184); // random number larger than user mem to simulate OOM crash
                 const void* progData = ti_GetDataPtr(romHandle);
-                debug_printf("Copying %zu bytes from program (%p) to ROM (%p)\n", codeSize, progData, (void*)rom_mem.get());
-                memcpy(rom_mem.get(), progData, codeSize);
-                debug_printf("Setting remaing %zu bytes at %p to 0xff\n", (ROM_BYTES - codeSize), (void*)(rom_mem.get() + codeSize));
-                memset(rom_mem.get() + codeSize, 0xff, ROM_BYTES - codeSize);
+                debug_printf("Copying %zu bytes from program (%p) to ROM (%p)\n", codeSize, progData, (void*)romManager.get());
+                memcpy(romManager.get(), progData, codeSize);
+                debug_printf("Setting remaing %zu bytes at %p to 0xff\n", (ROM_BYTES - codeSize), (void*)(romManager.get() + codeSize));
+                memset(romManager.get() + codeSize, 0xff, ROM_BYTES - codeSize);
                 ENTER_DEBUGGER();
             }
         }

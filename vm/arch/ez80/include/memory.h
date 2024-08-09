@@ -62,11 +62,11 @@ extern uint8 ram_mem[];
 
 #define ROM_BYTES 8192
 
-#ifdef _cplusplus
+#if false //def _cplusplus
 // Evil hack - C code will treat this as a pointer
 extern BumpPointer<uint8> rom_mem;
 #else
-extern const uint8* rom_mem;
+extern /*const*/ uint8* rom_mem;
 #endif
 #define rom_get(a) (rom_mem[(a)-CODE_START])
 #ifdef __cplusplus
