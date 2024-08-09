@@ -21,8 +21,16 @@ typedef uint16 obj; /* Only 13 bits are used in pointers */
 #define NORETURN
 #endif /* defined(__GNUC__) */
 
+#ifdef __cplusplus
+}
+#endif
+
 #include <heap.h>
 #include <object.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* GC roots set. */
 

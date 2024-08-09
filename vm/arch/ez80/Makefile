@@ -16,13 +16,13 @@ ON_CALC_DESC := "A small Scheme dialect"
 
 CEDEV := $(shell cedev-config --prefix)
 
-CFLAGS += -MD -c -emit-llvm -nostdinc -isystem $(CEDEV)/include -fno-threadsafe-statics -Xclang -fforce-mangle-main-argc-argv -mllvm -profile-guided-section-prefix=false -D$(DEBUGMODE) $(CCDEBUG) -Wall -Wextra -Oz
+CFLAGS += -MD -c -emit-llvm -nostdinc -isystem $(CEDEV)/include -fno-threadsafe-statics -Xclang -fforce-mangle-main-argc-argv -mllvm -profile-guided-section-prefix=false -D$(DEBUGMODE) $(CCDEBUG) -Wall -Wextra -Oz -flto
 
 ifdef CONFIG_CUSTOM_DEBUG_PRINTF
 CFLAGS += -D"debug_printf(...)=sprintf(((char*)0xFB0000),\#\#__VA_ARGS__)"
 endif
 
-CXXFLAGS = $(subst -nostdinc, -nostdinc++, $(subst -std=gnu11, -std=gnu++17, $(CFLAGS))) -isystem $(CEDEV)/include/c++ -fno-exceptions -fno-rtti
+CXXFLAGS = $(subst -nostdinc, -nostdinc++, $(subst -std=gnu11, -std=gnu++17, $(CFLAGS))) -isystem $(CEDEV)/include/c++ -D_cplusplus -fno-exceptions -fno-rtti -fno-use-cxa-atexit
 
 # only .c extensions will be preprocessed into .primitives.p
 arch-y   += entry.cpp primitives.c

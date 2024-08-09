@@ -3,9 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-//#include <exception>
-//#include <new>
-//#include <typeinfo>
+#include <type_traits>
 
 #include <picobit.h>
 #include <dispatch.h>
@@ -106,18 +104,21 @@ public:
     // just support app vars for now..
     TIFile(const char* name, const char* mode)
         : handle_(ti_Open(name, mode))
-    {
-        if(0 == handle_) {
-            std::exit(-1);//throw file_error("ti_Open failed");
-        }
-    }
+    {}
 
     TIFile(const TIFile&) = delete;
-    TIFile(TIFile&&) = default;
+    TIFile(TIFile&& other) : handle_(0) {
+        // TODO - is this swap atomic / can bad things happen if, e.g. an interrupt fires?
+        std::swap(handle_, other.handle_);
+    }
     TIFile& operator=(const TIFile&) = delete;
-    TIFile& operator=(TIFile&&) = default;
+    TIFile& operator=(TIFile&& other) {
+        this->~TIFile(); // self destruct
+        return *(new (this) TIFile(std::move(other)));
+    }
 
     ~TIFile() {
+        debug_printf("Destroying TIFile %hhu\n", handle_);
         if(0 != handle_) {
             ti_Close(handle_);
         }
@@ -129,13 +130,14 @@ public:
     }
 };
 
+
 extern "C" {
     uint8 ram_mem[RAM_BYTES + VEC_BYTES] = {0};
-    uint8 * rom_mem = NULL;
+    BumpPointer<uint8> rom_mem = NULL;
 
     static uint24_t bumpFloor;
 
-    /*[[nodiscard, __gnu__::__malloc__]]*/ void* bump_malloc(const size_t size) {
+    void* bump_malloc(const size_t size) {
         debug_printf("bump_malloc: %zu bytes requested\n", size);
         
         size_t bytesAvail = 0;
@@ -214,10 +216,10 @@ extern "C" {
     }
 }
 
-int main (void)
+int main ()
 {
     bumpFloor = os_AsmPrgmSize; // must happen before any calls to bump_free / bump_malloc;
-    SET_FUNC_BREAKPOINT(bump_free);
+    //SET_FUNC_BREAKPOINT(bump_free);
     // sadly ez80 clang can't seem to legalize taking the address of a label?
     //SET_LABEL_BREAKPOINT(sign_off);
 
@@ -232,12 +234,14 @@ int main (void)
             if (codeSize > ROM_BYTES) {
                 error("<main>", "ROM size");
             } else {
-                rom_mem = reinterpret_cast<uint8 *>(bump_malloc(ROM_BYTES));
+                rom_mem = BumpPointer<uint8>(ROM_BYTES);
+                //rom_mem = BumpPointer<uint8>(182184); // random number larger than user mem to simulate OOM crash
                 const void* progData = ti_GetDataPtr(romHandle);
-                debug_printf("Copying %zu bytes from program (%p) to ROM (%p)\n", codeSize, progData, (void*)rom_mem);
-                memcpy(rom_mem, progData, codeSize);
-                debug_printf("Setting remaing %zu bytes at %p to 0xff\n", (ROM_BYTES - codeSize), (void*)(rom_mem + codeSize));
-                memset(rom_mem + codeSize, 0xff, ROM_BYTES - codeSize);
+                debug_printf("Copying %zu bytes from program (%p) to ROM (%p)\n", codeSize, progData, (void*)rom_mem.get());
+                memcpy(rom_mem.get(), progData, codeSize);
+                debug_printf("Setting remaing %zu bytes at %p to 0xff\n", (ROM_BYTES - codeSize), (void*)(rom_mem.get() + codeSize));
+                memset(rom_mem.get() + codeSize, 0xff, ROM_BYTES - codeSize);
+                ENTER_DEBUGGER();
             }
         }
 
@@ -254,11 +258,7 @@ int main (void)
 #endif
         }
 
-        if (rom_mem != NULL) {
-            void* cleanup = rom_mem;
-            rom_mem = NULL;
-            bump_free(cleanup);
-        }
+        rom_mem = nullptr;
     }/* catch (const std::exception &e) {
         debug_printf("Caught %s: %s\n", typeid(e).name(), e.what());
     } catch(...) {

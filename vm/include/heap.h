@@ -1,6 +1,5 @@
 #ifndef PICOBIT_HEAP_H
 #define PICOBIT_HEAP_H
-
 /*
  * Address space layout.
  * For details, see IFL paper. Pointer in README.
