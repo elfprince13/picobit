@@ -134,7 +134,7 @@ public:
 extern "C" {
     uint8 ram_mem[RAM_BYTES + VEC_BYTES] = {0};
     //BumpPointer<uint8> rom_mem = NULL;
-    uint8* rom_mem = NULL;
+    //uint8* rom_mem = NULL;
 
     static uint24_t bumpFloor;
 
@@ -227,7 +227,8 @@ int main ()
     debug_printf("bump floor: %zu\n", bumpFloor);
 	int errcode = 0;
     /*try*/ {
-        BumpPointer<uint8> romManager;
+        IndirectBumpPointer<uint8, CONFIG_ROM_MEM_PTR> romManager(ROM_BYTES);
+        //rom_mem = BumpPointer<uint8>(182184); // random number larger than user mem to simulate OOM crash
         {
             // find the ROM address ( in RAM other otherwise ;) )
             const TIFile romHandle{"RustlROM", "r"};
@@ -236,9 +237,6 @@ int main ()
             if (codeSize > ROM_BYTES) {
                 error("<main>", "ROM size");
             } else {
-                romManager = BumpPointer<uint8>(ROM_BYTES);
-                rom_mem = romManager.get();
-                //rom_mem = BumpPointer<uint8>(182184); // random number larger than user mem to simulate OOM crash
                 const void* progData = ti_GetDataPtr(romHandle);
                 debug_printf("Copying %zu bytes from program (%p) to ROM (%p)\n", codeSize, progData, (void*)romManager.get());
                 memcpy(romManager.get(), progData, codeSize);
@@ -260,8 +258,6 @@ int main ()
 #endif
 #endif
         }
-
-        rom_mem = nullptr;
     }/* catch (const std::exception &e) {
         debug_printf("Caught %s: %s\n", typeid(e).name(), e.what());
     } catch(...) {

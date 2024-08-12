@@ -2,3 +2,7 @@ config CROSS_COMPILER
 	string "Cross compiler prefix"
 	default "ez80-"
 
+config ROM_MEM_PTR
+	hex "Address where it is safe to keep a single pointer"
+	# begPC = https://wikiti.brandonw.net/index.php?title=83PCE:RAM:D02317
+	default D02317

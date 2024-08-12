@@ -65,6 +65,7 @@ picobit-vm.bin: picobit-vm.src icon.src linker_script
 		-i 'include "linker_script"'\
 		-i 'range .bss $$D052C6 : $$D13FD8' -i 'provide __stack = $$D1A87E' -i 'locate .header at $$0'\
 		-i 'provide __app_name = $(ON_CALC_NAME)'  -i 'provide __app_version = "0"' -i 'provide __app_desc = $(ON_CALC_DESC)'\
+		-i 'provide _rom_mem = $$$(CONFIG_ROM_MEM_PTR)'\
 		-i 'source "icon.src", "$(CEDEV)/lib/crt/crt0.src", "picobit-vm.src"'\
 		-i 'library "$(CEDEV)/lib/libload/fatdrvce.lib", "$(CEDEV)/lib/libload/fileioc.lib", "$(CEDEV)/lib/libload/fontlibc.lib", "$(CEDEV)/lib/libload/graphx.lib", "$(CEDEV)/lib/libload/keypadc.lib", "$(CEDEV)/lib/libload/msddrvce.lib", "$(CEDEV)/lib/libload/srldrvce.lib", "$(CEDEV)/lib/libload/usbdrvce.lib"'\
 		'$@'
