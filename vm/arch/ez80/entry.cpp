@@ -14,6 +14,7 @@
 #include <debug.h>
 
 #define os_UserMem ((std::byte*)0xD1A881)
+#define os_FlagsIY ((uint8*)0xD00080)
 
 #define ENTER_DEBUGGER() asm volatile (\
         "scf\n"\
@@ -137,15 +138,19 @@ extern "C" {
     //uint8* rom_mem = NULL;
 
     static uint24_t bumpFloor;
-
+    // TODO: calc84maniac says:
+    // incidentally there's an __attribute__((__tiflags__)) that can 
+    // be set on function declarations for an ABI that sets IY to flags
+    // you can see it used in the OS function headers in the toolchain 
+    // for the functions that need it (which are C ABI other than that)
     void* bump_malloc(const size_t size) {
         debug_printf("bump_malloc: %zu bytes requested\n", size);
         
         size_t bytesAvail = 0;
         asm volatile (
-            "call\t0204FCh\n" // MemC
+            "call\t0204FCh\n" // MemChk
             : "=l" (bytesAvail)
-            :
+            : "iyl" (os_FlagsIY)
             : "c"
         );
 
@@ -157,7 +162,7 @@ extern "C" {
             asm volatile (
                 "call\t020514h\n" // InsertMem
                 : "=e" (result) // output - must use lower byte name for registers
-                : "e"(result), "l"(size) // input - must use lower byte name for registers
+                : "e"(result), "l"(size), "iyl" (os_FlagsIY) // input - must use lower byte name for registers
                 : "a", "c", "cc", "memory" // clobbers - must use lower byte name for registers (except a. cc is flags) - presumably "l" should also be here but clang doesn't like that because it's an input?
             );
             debug_printf("Updating reserved os_AsmPrgmSize\n");
@@ -181,7 +186,7 @@ extern "C" {
                 asm volatile (
                     "call\t020580h\n" // DelMemA - DelMem appears to just be a redirect?
                     : //"=e"(size), "=c"(actualDel)
-                    : "l"(ptr), "e"(size)
+                    : "l"(ptr), "e"(size), "iyl" (os_FlagsIY)
                     : "a", "c", "cc", "memory"
                 );
                 //debug_printf("DelMem released %zu / %zu bytes\n", actualDel, size);
@@ -219,6 +224,7 @@ extern "C" {
 
 int main ()
 {
+    ENTER_DEBUGGER();
     bumpFloor = os_AsmPrgmSize; // must happen before any calls to bump_free / bump_malloc;
     //SET_FUNC_BREAKPOINT(bump_free);
     // sadly ez80 clang can't seem to legalize taking the address of a label?
@@ -265,6 +271,6 @@ int main ()
     }*/
 
     debug_printf("Exiting Rustle\n");
-
+    ENTER_DEBUGGER();
 	return errcode;
 }
