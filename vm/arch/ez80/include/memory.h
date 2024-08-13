@@ -3,6 +3,49 @@
 #ifdef __cplusplus
 #include <new>
 
+#define MAX_CLEANUPS 32
+struct alignas(uint24_t) CleanupHook {
+    using Destructor = void(*)(void*);
+    void* obj = nullptr; // not a nullptr -
+    Destructor destructor = (Destructor)0x66 /* flash exception handler - will reset the calc if actually called */;
+    /// idempotent cleanup invocation
+    void operator()();
+    
+    static CleanupHook cleanups[MAX_CLEANUPS];
+    static uint8 activeCleanups;    
+    static void cleanup();
+
+    template<typename T>
+    static void registerCleanup(T* obj) {
+        if (activeCleanups >= MAX_CLEANUPS) {
+            debug_printf("Couldn't register cleanup of obj at %p, likely resource leak!\n", (void*)obj);
+            //ENTER_DEBUGGER();
+        } else {
+            new (&(cleanups[activeCleanups++])) CleanupHook{ (void*)obj, (CleanupHook::Destructor)(&T::UnsafeEvilDestroyMe)};
+        }
+    }
+
+    template<typename T>
+    static void unregisterCleanup(T* obj) {
+        if (activeCleanups == 0) {
+            debug_printf("Couldn't unregister cleanup! the stack is empty?\n");
+            //ENTER_DEBUGGER();
+        } else if (uint8_t top = activeCleanups - 1;
+                   (void*)obj != cleanups[top].obj)
+        {
+            debug_printf("Mismatched cleanup pointers %p and %p - out of order registration/unwinding?!\n",
+                         (void*)obj, (void*)(cleanups[top].obj));
+            //ENTER_DEBUGGER();
+        } else if ((CleanupHook::Destructor)(&T::UnsafeEvilDestroyMe) != cleanups[top].destructor) {
+            debug_printf("Memory corruption? Destructor addresses don't match! %p and %p!\n",
+                         (void*)(&T::UnsafeEvilDestroyMe), (void*)(cleanups[top].destructor));
+            //ENTER_DEBUGGER();
+        } else {
+            new (&(cleanups[activeCleanups = top])) CleanupHook{};
+        }
+    }
+};
+
 extern "C" {
     [[nodiscard, __gnu__::__malloc__]] void* bump_malloc(const size_t size);
     void bump_free(void * ptr);
@@ -13,18 +56,20 @@ class alignas(T*) BumpPointer {
     T* ptr_;
 public:
     BumpPointer() : ptr_(nullptr) {}
-    BumpPointer(size_t count) : ptr_(reinterpret_cast<T*>(bump_malloc(count * sizeof(T)))) {}
+    BumpPointer(size_t count) : ptr_(reinterpret_cast<T*>(bump_malloc(count * sizeof(T)))) {
+        CleanupHook::registerCleanup(this);
+    }
 
     BumpPointer(const BumpPointer&) = delete;
-    BumpPointer(BumpPointer&& other) : BumpPointer() {
+    BumpPointer(BumpPointer&& other) = delete; /*too much work making moveable cleanups for now*//*: BumpPointer() {
         // TODO - is this swap atomic / can bad things happen if, e.g. an interrupt fires?
         std::swap(ptr_, other.ptr_);
-    }
+    }*/
     BumpPointer& operator=(const BumpPointer&) = delete;
-    BumpPointer& operator=(BumpPointer&& other) {
+    BumpPointer& operator=(BumpPointer&& other) = delete; /*too much work making moveable cleanups for now*//* {
         this->~BumpPointer(); // self destruct
         return *(new (this) BumpPointer(std::move(other))); // self reconstruct
-    }
+    } */
 
 
     BumpPointer& operator=(const std::nullptr_t) {
@@ -37,6 +82,7 @@ public:
         void* cleanup = ptr_;
         ptr_ = nullptr;
         bump_free(cleanup);
+        CleanupHook::unregisterCleanup(this);
     }
 
     const T* get() const {
@@ -49,7 +95,11 @@ public:
 
     T& operator[](std::size_t idx)       { return ptr_[idx]; }
     const T& operator[](std::size_t idx) const { return ptr_[idx]; }
-
+private:
+    friend struct CleanupHook;
+    static void UnsafeEvilDestroyMe(BumpPointer<T> * self) {
+        self->~BumpPointer();
+    }
 };
 
 
@@ -77,6 +127,7 @@ public:
             backup = *(void**)Ptr;
             debug_printf("Backing up *%p = %p\n", (void*)Ptr, backup);
             *(T**)Ptr = reinterpret_cast<T*>(bump_malloc(count * sizeof(T)));
+            CleanupHook::registerCleanup(this);
 #ifndef NDBEUG
         } else {
             if constexpr (!is_same<ErrCallback, std::nullptr_t>::value) {
@@ -102,6 +153,7 @@ public:
             *(void**)Ptr = backup;
             backup = nullptr;
             bump_free(cleanup);
+            CleanupHook::unregisterCleanup(this);
 #ifndef NDEBUG
         }
 #endif
@@ -117,7 +169,11 @@ public:
 
     T& operator[](std::size_t idx)       { return (*(T**)Ptr)[idx]; }
     const T& operator[](std::size_t idx) const { return (*(T**)Ptr)[idx]; }
-
+private:
+    friend struct CleanupHook;
+    static void UnsafeEvilDestroyMe(IndirectBumpPointer<T, Ptr> * self) {
+        self->~IndirectBumpPointer();
+    }
 };
 
 

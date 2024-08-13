@@ -16,6 +16,7 @@
 #define os_UserMem ((std::byte*)0xD1A881)
 #define os_FlagsIY ((uint8*)0xD00080)
 
+#ifndef NDEBUG
 #define ENTER_DEBUGGER() asm volatile (\
         "scf\n"\
         "sbc\thl,hl\n"\
@@ -42,6 +43,11 @@
         : "e"(&&label)\
         : "l"\
     )
+#else 
+#define ENTER_DEBUGGER()
+#define SET_FUNC_BREAKPOINT(func)
+#define SET_LABEL_BREAKPOINT(label)
+#endif
 
 /*
 class bad_free : public std::exception {
@@ -105,29 +111,37 @@ public:
     // just support app vars for now..
     TIFile(const char* name, const char* mode)
         : handle_(ti_Open(name, mode))
-    {}
+    {
+        CleanupHook::registerCleanup(this);
+    }
 
     TIFile(const TIFile&) = delete;
-    TIFile(TIFile&& other) : handle_(0) {
+    TIFile(TIFile&& other) = delete; /*too much work making moveable cleanups for now */ /*: handle_(0) {
         // TODO - is this swap atomic / can bad things happen if, e.g. an interrupt fires?
         std::swap(handle_, other.handle_);
-    }
+    } */
     TIFile& operator=(const TIFile&) = delete;
-    TIFile& operator=(TIFile&& other) {
+    TIFile& operator=(TIFile&& other) = delete; /*too much work making moveable cleanups for now */ /*{
         this->~TIFile(); // self destruct
         return *(new (this) TIFile(std::move(other)));
-    }
+    } */
 
     ~TIFile() {
         debug_printf("Destroying TIFile %hhu\n", handle_);
         if(0 != handle_) {
             ti_Close(handle_);
         }
+        CleanupHook::unregisterCleanup(this);
     }
 
     /// never 0
     operator uint8_t () const {
         return handle_;
+    }
+private:
+    friend struct CleanupHook;
+    static void UnsafeEvilDestroyMe(TIFile * self) {
+        self->~TIFile();
     }
 };
 
@@ -222,8 +236,31 @@ extern "C" {
     }
 }
 
+uint8 CleanupHook::activeCleanups = 0;
+CleanupHook CleanupHook::cleanups[MAX_CLEANUPS];
+
+void CleanupHook::operator()() {
+    if (void * const tmp = obj;
+        obj != nullptr)
+    {
+        obj = nullptr;
+        destructor(tmp);
+        destructor = (void(*)(void*))0x66;
+    }
+}
+
+void CleanupHook::cleanup() {
+    const uint8_t totalCleanups = activeCleanups;
+    while (activeCleanups) {
+        debug_printf("Cleaning up %hhu / %hhu objects!\n", activeCleanups, totalCleanups);
+        cleanups[--activeCleanups]();
+    }
+}
+
 int main ()
 {
+    std::atexit(&CleanupHook::cleanup);
+    std::at_quick_exit(&CleanupHook::cleanup);
     ENTER_DEBUGGER();
     bumpFloor = os_AsmPrgmSize; // must happen before any calls to bump_free / bump_malloc;
     //SET_FUNC_BREAKPOINT(bump_free);
