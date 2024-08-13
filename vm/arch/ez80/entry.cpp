@@ -242,7 +242,6 @@ int main ()
                 memcpy(romManager.get(), progData, codeSize);
                 debug_printf("Setting remaing %zu bytes at %p to 0xff\n", (ROM_BYTES - codeSize), (void*)(romManager.get() + codeSize));
                 memset(romManager.get() + codeSize, 0xff, ROM_BYTES - codeSize);
-                ENTER_DEBUGGER();
             }
         }
 

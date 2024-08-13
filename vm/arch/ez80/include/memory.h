@@ -63,6 +63,7 @@ struct is_same<T, T> : std::true_type {};
 
 template<typename T, uintptr_t Ptr>
 class IndirectBumpPointer {
+    static void* backup;
 #ifndef NDEBUG
     static size_t alive;
 #endif
@@ -73,6 +74,8 @@ public:
         alive += 1;
         if (1 == alive) {
 #endif
+            backup = *(void**)Ptr;
+            debug_printf("Backing up *%p = %p\n", (void*)Ptr, backup);
             *(T**)Ptr = reinterpret_cast<T*>(bump_malloc(count * sizeof(T)));
 #ifndef NDBEUG
         } else {
@@ -93,9 +96,11 @@ public:
         alive -=1;
         if (!alive) {
 #endif
-            debug_printf("Freeing IndirectBumpPointer *%p = %p\n", (void*)(T**)Ptr, (void*)(*(T**)Ptr));
+            debug_printf("Freeing IndirectBumpPointer *%p = %p\n", (void*)Ptr, (void*)(*(T**)Ptr));
             void* cleanup = *(T**)Ptr;
-            *(T**)Ptr = nullptr;
+            debug_printf("Restoring backup *%p = %p\n", (void*)Ptr, backup);
+            *(void**)Ptr = backup;
+            backup = nullptr;
             bump_free(cleanup);
 #ifndef NDEBUG
         }
@@ -115,6 +120,8 @@ public:
 
 };
 
+
+template<typename T, uintptr_t Ptr> void* IndirectBumpPointer<T, Ptr>::backup = nullptr;
 #ifndef NDEBUG
 template<typename T, uintptr_t Ptr> size_t IndirectBumpPointer<T, Ptr>::alive = 0;
 #endif
