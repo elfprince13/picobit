@@ -250,6 +250,7 @@ int main ()
             rom_get (CODE_START+1) != 0xd7) {
             printf ("*** The hex file was not compiled with PICOBIT\n");
         } else {
+            ENTER_DEBUGGER();
             interpreter ();
 
 #ifdef CONFIG_GC_STATISTICS

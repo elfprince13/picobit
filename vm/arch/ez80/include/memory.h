@@ -70,12 +70,12 @@ public:
     template<typename ErrCallback = std::nullptr_t>
     IndirectBumpPointer(size_t count, [[maybe_unused]] ErrCallback errCallback = ErrCallback{}) {
 #ifndef NDBEUG
-        if (!alive) {
+        alive += 1;
+        if (1 == alive) {
 #endif
             *(T**)Ptr = reinterpret_cast<T*>(bump_malloc(count * sizeof(T)));
 #ifndef NDBEUG
         } else {
-            alive += 1;
             if constexpr (!is_same<ErrCallback, std::nullptr_t>::value) {
                 errCallback(alive);
             }
