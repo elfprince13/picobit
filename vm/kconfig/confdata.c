@@ -821,7 +821,9 @@ int conf_write_autoconf(void)
 	fprintf(tristate, "#\n"
 			  "# Automatically generated - do not edit\n"
 			  "\n");
-	fprintf(out_h, "/*\n"
+	fprintf(out_h, "#ifndef PICOBIT_AUTOCONF_H\n"
+	               "#define PICOBIT_AUTOCONF_H\n\n"
+				   "/*\n"
 		       " * Automatically generated C config: don't edit\n"
 		       " * %s\n"
 		       " * %s"
@@ -877,6 +879,7 @@ int conf_write_autoconf(void)
 			break;
 		}
 	}
+	fprintf(out_h, "\n\n#endif\n");
 	fclose(out);
 	fclose(tristate);
 	fclose(out_h);

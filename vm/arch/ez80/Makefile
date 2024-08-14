@@ -25,7 +25,7 @@ endif
 CXXFLAGS = $(subst -nostdinc, -nostdinc++, $(subst -std=gnu11, -std=gnu++17, $(CFLAGS))) -isystem $(CEDEV)/include/c++ -D_cplusplus -fno-exceptions -fno-rtti -fno-use-cxa-atexit
 
 # only .c extensions will be preprocessed into .primitives.p
-arch-y   += entry.cpp primitives.c
+arch-y   += entry.cpp memory.cpp primitives.c
 stdlib-y += stdlib.scm
 
 load-address := \#x0000
@@ -35,10 +35,10 @@ arch-all: rustle.8ek
 llvm-c-y = $(addsuffix .bc,$(filter %.c,$(obj-y)))
 llvm-cpp-y = $(addsuffix .bc,$(filter %.cpp,$(obj-y)))
 
-$(llvm-c-y): %.c.bc: %.c .config arch/ez80/include/memory.h arch/ez80/include/types.h
+$(llvm-c-y): %.c.bc: %.c .config arch/ez80/include/memory.h arch/ez80/include/types.h arch/ez80/include/cemu-debug.h include/debug.h
 	$(CROSS)clang $(CFLAGS) $< -o $@
 
-$(llvm-cpp-y): %.cpp.bc: %.cpp .config arch/ez80/include/memory.h arch/ez80/include/types.h
+$(llvm-cpp-y): %.cpp.bc: %.cpp .config arch/ez80/include/memory.h arch/ez80/include/cemu-debug.h
 	$(CROSS)clang $(CXXFLAGS) $< -o $@
 
 picobit-vm.bc: $(llvm-c-y) $(llvm-cpp-y) .config

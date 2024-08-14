@@ -13,42 +13,6 @@
 #include <fileioc.h>
 #include <debug.h>
 
-#define os_UserMem ((std::byte*)0xD1A881)
-#define os_FlagsIY ((uint8*)0xD00080)
-
-#ifndef NDEBUG
-#define ENTER_DEBUGGER() asm volatile (\
-        "scf\n"\
-        "sbc\thl,hl\n"\
-        "ld     (hl),2"\
-        :\
-        :\
-        : "l"\
-    )
-
-#define SET_FUNC_BREAKPOINT(func) asm volatile (\
-        "scf\n"\
-        "sbc\thl,hl\n"\
-        "ld     (hl),3"\
-        :\
-        : "e"(&func)\
-        : "l"\
-    )
-
-#define SET_LABEL_BREAKPOINT(label) asm volatile (\
-        "scf\n"\
-        "sbc\thl,hl\n"\
-        "ld     (hl),3"\
-        :\
-        : "e"(&&label)\
-        : "l"\
-    )
-#else 
-#define ENTER_DEBUGGER()
-#define SET_FUNC_BREAKPOINT(func)
-#define SET_LABEL_BREAKPOINT(label)
-#endif
-
 /*
 class bad_free : public std::exception {
     const char* what_;
@@ -147,72 +111,6 @@ private:
 
 
 extern "C" {
-    uint8 ram_mem[RAM_BYTES + VEC_BYTES] = {0};
-    //BumpPointer<uint8> rom_mem = NULL;
-    //uint8* rom_mem = NULL;
-
-    static uint24_t bumpFloor;
-    // TODO: calc84maniac says:
-    // incidentally there's an __attribute__((__tiflags__)) that can 
-    // be set on function declarations for an ABI that sets IY to flags
-    // you can see it used in the OS function headers in the toolchain 
-    // for the functions that need it (which are C ABI other than that)
-    void* bump_malloc(const size_t size) {
-        debug_printf("bump_malloc: %zu bytes requested\n", size);
-        
-        size_t bytesAvail = 0;
-        asm volatile (
-            "call\t0204FCh\n" // MemChk
-            : "=l" (bytesAvail)
-            : "iyl" (os_FlagsIY)
-            : "c"
-        );
-
-        debug_printf("bump_malloc: %zu bytes available\n", bytesAvail);
-
-        if (bytesAvail >= size) {
-            void* result = (os_UserMem + os_AsmPrgmSize);
-            debug_printf("InsertMem at %p\n", result);
-            asm volatile (
-                "call\t020514h\n" // InsertMem
-                : "=e" (result) // output - must use lower byte name for registers
-                : "e"(result), "l"(size), "iyl" (os_FlagsIY) // input - must use lower byte name for registers
-                : "a", "c", "cc", "memory" // clobbers - must use lower byte name for registers (except a. cc is flags) - presumably "l" should also be here but clang doesn't like that because it's an input?
-            );
-            debug_printf("Updating reserved os_AsmPrgmSize\n");
-            os_AsmPrgmSize += size;
-            return result;
-        } else {
-            debug_printf("Not enough memory!\n");
-            std::exit(-1);//throw std::bad_alloc();
-        }
-    }
-
-    void bump_free(void * ptr) {
-        debug_printf("bump_free called on %p\n", ptr);
-        const std::byte * curCeiling = (os_UserMem + os_AsmPrgmSize);
-        if (ptr < curCeiling) {
-            if (ptr >= (os_UserMem + bumpFloor)) {
-                const size_t size = curCeiling - reinterpret_cast<std::byte*>(ptr);
-                debug_printf("Attempting to release %zu = %p - %p bytes\n", size, curCeiling, ptr);
-                //size_t actualDel;
-                os_AsmPrgmSize -= size;
-                asm volatile (
-                    "call\t020580h\n" // DelMemA - DelMem appears to just be a redirect?
-                    : //"=e"(size), "=c"(actualDel)
-                    : "l"(ptr), "e"(size), "iyl" (os_FlagsIY)
-                    : "a", "c", "cc", "memory"
-                );
-                //debug_printf("DelMem released %zu / %zu bytes\n", actualDel, size);
-                //assert(size == actualDel);
-            } else {
-                std::exit(-1);//throw bad_free("bump_free: can't free below the bump floor");
-            }
-        } else {
-            std::exit(-1);//throw bad_free("bump_free: can't free above the bump floor (may indicate double free?)");
-        }
-    }
-
     void error (const char *prim, const char *msg)
     {
         snprintf(os_AppErr1, 12, "%s:%s", prim, msg); 
@@ -236,38 +134,16 @@ extern "C" {
     }
 }
 
-uint8 CleanupHook::activeCleanups = 0;
-CleanupHook CleanupHook::cleanups[MAX_CLEANUPS];
-
-void CleanupHook::operator()() {
-    if (void * const tmp = obj;
-        obj != nullptr)
-    {
-        obj = nullptr;
-        destructor(tmp);
-        destructor = (void(*)(void*))0x66;
-    }
-}
-
-void CleanupHook::cleanup() {
-    const uint8_t totalCleanups = activeCleanups;
-    while (activeCleanups) {
-        debug_printf("Cleaning up %hhu / %hhu objects!\n", activeCleanups, totalCleanups);
-        cleanups[--activeCleanups]();
-    }
-}
-
 int main ()
 {
     std::atexit(&CleanupHook::cleanup);
     std::at_quick_exit(&CleanupHook::cleanup);
-    ENTER_DEBUGGER();
-    bumpFloor = os_AsmPrgmSize; // must happen before any calls to bump_free / bump_malloc;
+    
+    bump_init();
     //SET_FUNC_BREAKPOINT(bump_free);
     // sadly ez80 clang can't seem to legalize taking the address of a label?
     //SET_LABEL_BREAKPOINT(sign_off);
 
-    debug_printf("bump floor: %zu\n", bumpFloor);
 	int errcode = 0;
     /*try*/ {
         IndirectBumpPointer<uint8, CONFIG_ROM_MEM_PTR> romManager(ROM_BYTES);
@@ -277,6 +153,7 @@ int main ()
             const TIFile romHandle{"RustlROM", "r"};
             const size_t codeSize = ti_GetSize(romHandle);
             debug_printf("Opened ROM: %zu bytes\n", codeSize);
+            std::exit(-1);
             if (codeSize > ROM_BYTES) {
                 error("<main>", "ROM size");
             } else {
@@ -292,7 +169,6 @@ int main ()
             rom_get (CODE_START+1) != 0xd7) {
             printf ("*** The hex file was not compiled with PICOBIT\n");
         } else {
-            ENTER_DEBUGGER();
             interpreter ();
 
 #ifdef CONFIG_GC_STATISTICS
@@ -308,6 +184,5 @@ int main ()
     }*/
 
     debug_printf("Exiting Rustle\n");
-    ENTER_DEBUGGER();
 	return errcode;
 }

@@ -1,6 +1,8 @@
 #ifndef PICOBIT_DEBUG_H
 #define PICOBIT_DEBUG_H
 
+#include <generated/autoconf.h>
+
 #if defined(CONFIG_VM_DEBUG) || defined(CONFIG_GC_DEBUG) || defined(CONFIG_DEBUG_STRINGS)
 #include <stdio.h>
 #ifdef CONFIG_CUSTOM_DEBUG_PRINTF
@@ -16,9 +18,8 @@
 #else
 #ifdef debug_printf
 #undef debug_printf
-#else
-#define debug_printf(x)
 #endif
+#define debug_printf(...)
 #endif
 
 #ifdef CONFIG_VM_DEBUG

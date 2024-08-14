@@ -25,7 +25,7 @@ lex.%.c: %.l
 	gperf < $< > $@
 else
 
-%.c: %.c_shipped
+%.c: %.c_shipped confdata.c
 	cp $< $@
 
 endif

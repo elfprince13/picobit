@@ -1,7 +1,13 @@
 #ifndef PICOBIT_ARCH_EZ80_MEMORY_H
 #define PICOBIT_ARCH_EZ80_MEMORY_H
+#include <debug.h>
 #ifdef __cplusplus
+#include <cstddef>
+#include <cstdint>
 #include <new>
+#include <type_traits>
+
+#include "cemu-debug.h"
 
 #define MAX_CLEANUPS 32
 struct alignas(uint24_t) CleanupHook {
@@ -10,16 +16,15 @@ struct alignas(uint24_t) CleanupHook {
     Destructor destructor = (Destructor)0x66 /* flash exception handler - will reset the calc if actually called */;
     /// idempotent cleanup invocation
     void operator()();
-    
     static CleanupHook cleanups[MAX_CLEANUPS];
-    static uint8 activeCleanups;    
+    static uint8_t activeCleanups;    
     static void cleanup();
 
     template<typename T>
     static void registerCleanup(T* obj) {
         if (activeCleanups >= MAX_CLEANUPS) {
             debug_printf("Couldn't register cleanup of obj at %p, likely resource leak!\n", (void*)obj);
-            //ENTER_DEBUGGER();
+            ENTER_DEBUGGER();
         } else {
             new (&(cleanups[activeCleanups++])) CleanupHook{ (void*)obj, (CleanupHook::Destructor)(&T::UnsafeEvilDestroyMe)};
         }
@@ -29,17 +34,17 @@ struct alignas(uint24_t) CleanupHook {
     static void unregisterCleanup(T* obj) {
         if (activeCleanups == 0) {
             debug_printf("Couldn't unregister cleanup! the stack is empty?\n");
-            //ENTER_DEBUGGER();
+            ENTER_DEBUGGER();
         } else if (uint8_t top = activeCleanups - 1;
                    (void*)obj != cleanups[top].obj)
         {
             debug_printf("Mismatched cleanup pointers %p and %p - out of order registration/unwinding?!\n",
                          (void*)obj, (void*)(cleanups[top].obj));
-            //ENTER_DEBUGGER();
+            ENTER_DEBUGGER();
         } else if ((CleanupHook::Destructor)(&T::UnsafeEvilDestroyMe) != cleanups[top].destructor) {
             debug_printf("Memory corruption? Destructor addresses don't match! %p and %p!\n",
                          (void*)(&T::UnsafeEvilDestroyMe), (void*)(cleanups[top].destructor));
-            //ENTER_DEBUGGER();
+            ENTER_DEBUGGER();
         } else {
             new (&(cleanups[activeCleanups = top])) CleanupHook{};
         }
@@ -49,6 +54,8 @@ struct alignas(uint24_t) CleanupHook {
 extern "C" {
     [[nodiscard, __gnu__::__malloc__]] void* bump_malloc(const size_t size);
     void bump_free(void * ptr);
+
+    void bump_init(); /// must happen before any calls to bump_malloc or bump_free.
 }
 
 template<typename T>
@@ -186,18 +193,13 @@ extern "C" {
 #endif
 #define CODE_START 0x0000
 
-extern uint8 ram_mem[];
+extern uint8_t ram_mem[];
 #define ram_get(a) ram_mem[a]
 #define ram_set(a,x) ram_mem[a] = (x)
 
 #define ROM_BYTES 8192
 
-#if false //def _cplusplus
-// Evil hack - C code will treat this as a pointer
-extern BumpPointer<uint8> rom_mem;
-#else
-extern const uint8* rom_mem;
-#endif
+extern const uint8_t *const rom_mem; // provided by linker
 #define rom_get(a) (rom_mem[(a)-CODE_START])
 #ifdef __cplusplus
 }
