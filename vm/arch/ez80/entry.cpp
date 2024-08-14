@@ -76,6 +76,9 @@ public:
     TIFile(const char* name, const char* mode)
         : handle_(ti_Open(name, mode))
     {
+        if (0 == handle_) {
+            error("<TIFile>", "File did not exist (or could not be opened)");
+        }
         CleanupHook::registerCleanup(this);
     }
 
@@ -113,6 +116,7 @@ private:
 extern "C" {
     void error (const char *prim, const char *msg)
     {
+        debug_printf("Error! %s: %s\n", prim, msg);
         snprintf(os_AppErr1, 12, "%s:%s", prim, msg); 
         std::exit(-1);//throw scheme_error(prim, msg);
         /*
@@ -124,6 +128,7 @@ extern "C" {
 
     void type_error (const char *prim, const char *type)
     {
+        debug_printf("Type Error! %s: %s\n", prim, type);
         snprintf(os_AppErr2, 12, "%s-%s", prim, type);
         std::exit(-1);//throw scheme_type_error(prim, type);
         /*
