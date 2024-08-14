@@ -26,6 +26,8 @@ struct alignas(uint24_t) CleanupHook {
             debug_printf("Couldn't register cleanup of obj at %p, likely resource leak!\n", (void*)obj);
             ENTER_DEBUGGER();
         } else {
+            debug_printf("Registering cleanup[%hhu] of obj %p with pseudo-destructor %p\n",
+                         activeCleanups,(void*)obj,(&T::UnsafeEvilDestroyMe));
             new (&(cleanups[activeCleanups++])) CleanupHook{ (void*)obj, (CleanupHook::Destructor)(&T::UnsafeEvilDestroyMe)};
         }
     }
@@ -46,6 +48,8 @@ struct alignas(uint24_t) CleanupHook {
                          (void*)(&T::UnsafeEvilDestroyMe), (void*)(cleanups[top].destructor));
             ENTER_DEBUGGER();
         } else {
+            debug_printf("Unregistering cleanup[%hhu] of obj %p with pseudo-destructor %p\n",
+                         top,(void*)obj,(&T::UnsafeEvilDestroyMe));
             new (&(cleanups[activeCleanups = top])) CleanupHook{};
         }
     }

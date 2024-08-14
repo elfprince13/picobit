@@ -153,7 +153,6 @@ int main ()
             const TIFile romHandle{"RustlROM", "r"};
             const size_t codeSize = ti_GetSize(romHandle);
             debug_printf("Opened ROM: %zu bytes\n", codeSize);
-            std::exit(-1);
             if (codeSize > ROM_BYTES) {
                 error("<main>", "ROM size");
             } else {

@@ -14,9 +14,12 @@ void CleanupHook::operator()() {
     if (void * const tmp = obj;
         obj != nullptr)
     {
-        obj = nullptr;
-        destructor(tmp);
-        destructor = (void(*)(void*))0x66;
+        destructor(tmp); // This should handle zeroing out the data with a call to unregister.
+#ifndef NDEBUG
+        if(obj != nullptr || destructor != (Destructor)0x66) {
+            debug_printf("Warning! post destruction cleanup hook does not appear to have invoked unregister?\n");
+        }
+#endif
     }
 }
 
@@ -24,7 +27,17 @@ void CleanupHook::cleanup() {
     const uint8_t totalCleanups = activeCleanups;
     while (activeCleanups) {
         debug_printf("Cleaning up %hhu / %hhu objects!\n", activeCleanups, totalCleanups);
-        cleanups[--activeCleanups]();
+        const uint8_t nextCleanup = activeCleanups - 1;
+        cleanups[nextCleanup]();
+#ifndef NDEBUG
+        if(activeCleanups != nextCleanup) {
+            debug_printf("Warning! cleanup[%hhu] function %p for obj %p did not self-unregister! "
+                         "This will infinite loop in release builds\n",
+                         nextCleanup, cleanups[nextCleanup].destructor, cleanups[nextCleanup].obj);
+            activeCleanups = nextCleanup;
+        }
+#endif
+
     }
 }
 
