@@ -186,7 +186,7 @@ int main ()
     } catch(...) {
         debug_printf("Caught unknown object - not an exception. Yikes!\n");
     }*/
-
+    memset(ram_mem, 0x00, RAM_BYTES + VEC_BYTES);
     debug_printf("Exiting Rustle\n");
 	return errcode;
 }

@@ -16,7 +16,7 @@ void CleanupHook::operator()() {
     {
         destructor(tmp); // This should handle zeroing out the data with a call to unregister.
 #ifndef NDEBUG
-        if(obj != nullptr || destructor != (Destructor)0x66) {
+        if(obj != nullptr || destructor != nullptr/*(Destructor)0x66*/) {
             debug_printf("Warning! post destruction cleanup hook does not appear to have invoked unregister?\n");
         }
 #endif
@@ -39,6 +39,19 @@ void CleanupHook::cleanup() {
 #endif
 
     }
+    //ENTER_DEBUGGER();
+}
+
+static inline size_t memChk() {
+    size_t bytesAvail = 0;
+    //ENTER_DEBUGGER();
+    asm volatile (
+        "call\t0204FCh\n" // MemChk
+        : "=l" (bytesAvail)
+        : "iyl" (os_FlagsIY)
+        : "c", "cc" // stepping through MemChk shows clobbers flags which is undocumented in 83+ WikiTI entry.
+    );
+    return bytesAvail;
 }
 
 extern "C" {
@@ -53,19 +66,14 @@ extern "C" {
     void* bump_malloc(const size_t size) {
         debug_printf("bump_malloc: %zu bytes requested\n", size);
         
-        size_t bytesAvail = 0;
-        asm volatile (
-            "call\t0204FCh\n" // MemChk
-            : "=l" (bytesAvail)
-            : "iyl" (os_FlagsIY)
-            : "c"
-        );
-
+        const size_t bytesAvail = memChk();
         debug_printf("bump_malloc: %zu bytes available\n", bytesAvail);
 
         if (bytesAvail >= size) {
             void* result = (os_UserMem + os_AsmPrgmSize);
             debug_printf("InsertMem at %p\n", result);
+
+            ENTER_DEBUGGER();
             asm volatile (
                 "call\t020514h\n" // InsertMem
                 : "=e" (result) // output - must use lower byte name for registers
@@ -88,14 +96,23 @@ extern "C" {
             if (ptr >= (os_UserMem + bumpFloor)) {
                 const size_t size = curCeiling - reinterpret_cast<std::byte*>(ptr);
                 debug_printf("Attempting to release %zu = %p - %p bytes\n", size, curCeiling, ptr);
+#ifndef NDEBUG
+                debug_printf("Memory free before: %zu\n", memChk());
+#endif
+                //
+                //memset(ptr, 0x00, size);
                 //size_t actualDel;
-                os_AsmPrgmSize -= size;
+                ENTER_DEBUGGER();
                 asm volatile (
-                    "call\t020580h\n" // DelMemA - DelMem appears to just be a redirect?
+                    "call\t020590h\n" // DelMem
                     : //"=e"(size), "=c"(actualDel)
                     : "l"(ptr), "e"(size), "iyl" (os_FlagsIY)
                     : "a", "c", "cc", "memory"
                 );
+                os_AsmPrgmSize -= size;
+#ifndef NDEBUG
+                debug_printf("Memory free after: %zu\n", memChk());
+#endif
                 //debug_printf("DelMem released %zu / %zu bytes\n", actualDel, size);
                 //assert(size == actualDel);
             } else {

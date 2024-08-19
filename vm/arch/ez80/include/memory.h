@@ -13,7 +13,7 @@
 struct alignas(uint24_t) CleanupHook {
     using Destructor = void(*)(void*);
     void* obj = nullptr; // not a nullptr -
-    Destructor destructor = (Destructor)0x66 /* flash exception handler - will reset the calc if actually called */;
+    Destructor destructor = nullptr;//(Destructor)0x66 /* flash exception handler - will reset the calc if actually called */;
     /// idempotent cleanup invocation
     void operator()();
     static CleanupHook cleanups[MAX_CLEANUPS];
