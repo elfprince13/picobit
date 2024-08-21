@@ -143,8 +143,114 @@ extern "C" {
     }
 }
 
+bool loadBytecode(uint8_t * const rom, const uint8_t * const srcFile, const uint8_t * const srcFileEnd) {
+    bool result = false;
+    /*
+    // misleading name: - really just hi8 because we would overflow our pointer size,
+    // but keeping it this way for now to minimize changeset
+	uint16_t hi16 = 0;
+    */
+    static_assert(CODE_START == 0, "non-zero code start requires re-enabling the hi16 codepath");
+
+    const uint8_t * readHead = srcFile;
+    while(readHead < srcFileEnd) {
+        const uint8_t len = *(readHead++);
+        if(readHead == srcFileEnd) { break; }
+        const uint8_t a1 = *(readHead++);
+        if(readHead == srcFileEnd) { break; }
+        const uint8_t a2 = *(readHead++);
+        if(readHead == srcFileEnd) { break; }
+        const uint8_t t = *(readHead++);
+        if(readHead == srcFileEnd) { break; }
+        
+        uint16_t a = ((uint16_t)a1 << 8) + a2;
+        uint8_t sum = len + a1 + a2 + t;
+
+        debug_printf("Line type %hhu, insert %02hhx bytes @ %04hx\n", t, len, a);
+        switch (t) {
+            case 0: {
+                for (uint8_t i = 0; i < len; ++i) {
+                    const uint16_t adr = a;//((uint24_t)hi16 << 16) + a - CODE_START;
+
+                    const uint8_t b = *(readHead++);
+                    if(readHead == srcFileEnd) { goto super_break; }
+                    
+
+                    // unsigned type is always positive!
+                    if (adr < ROM_BYTES) {
+                        rom[adr] = b;
+                    } else {
+                        printf("Address %04hx > ROM size %04hx, can't load bytecode\n", adr, (uint16_t)ROM_BYTES);
+                        goto super_break;
+                    }
+
+
+                    a = (a + 1);// & 0xffff;
+                    sum += b;
+                }
+            } break; 
+            case 1: {
+                if (len != 0) {
+                    debug_printf("line type 1 must have length 0, got %hhx\n", len);
+                    goto super_break;;
+                }
+            } break;
+            case 4: {
+                debug_printf("This bytecode was compiled for an unsupported extended address space!\n");
+                std::exit(ExitDevAssertFailed);
+                /*
+                if (len != 2) {
+                    break;
+                }
+
+                if ((a1 = read_hex_byte (f)) < 0 ||
+                    (a2 = read_hex_byte (f)) < 0) {
+                    break;
+                }
+
+                sum += a1 + a2;
+
+                hi16 = (a1<<8) + a2;
+                */
+            } goto super_break;
+            default: {
+                debug_printf("Unknown line type %hhx\n", t);
+            } goto super_break;
+        }
+
+        const uint8_t check = *(readHead++);
+        if(readHead == srcFileEnd) { debug_printf("reached end of data stream, no more reads allowed!\n"); }
+        
+        // simulate negation on unsigned type.
+        // can't make it a signed type because we need overflow which is U.B.
+        sum = (1 + ~sum);
+
+        if (sum != check) {
+            debug_printf ("*** BIN file checksum error\n    (got %02hhx, expected 0x%02hhx)\n", sum, check);
+            break;
+        }
+        /*
+        c = *(readHead++);
+        if(readHead == srcFileEnd) { break; }
+        */
+        if (t == 1) {
+            debug_printf("Finished reading - success!\n");
+            result = true;
+            break;
+        }
+    }
+super_break:
+
+    if (!result) {
+        printf ("*** BIN file syntax error\n");
+    }
+
+	return result;
+}
+
 int main ()
 {
+    
     std::atexit(&CleanupHook::cleanup);
     std::at_quick_exit(&CleanupHook::cleanup);
     
@@ -181,16 +287,30 @@ int main ()
             }
             // find the ROM address ( in RAM other otherwise ;) )
             const TIFile romHandle{ availableRoms[selected] /*"RustlROM"*/, "r"};
-            const size_t codeSize = ti_GetSize(romHandle);
+            const size_t fileSize = ti_GetSize(romHandle);
+
+            if (fileSize <= 2) {
+                error("<main>", "Invalid file!");
+            }
+
+            const size_t codeSize = fileSize - 2;
+            
             debug_printf("Opened ROM: %zu bytes\n", codeSize);
             if (codeSize > ROM_BYTES) {
                 error("<main>", "ROM size");
             } else {
-                const void* progData = ti_GetDataPtr(romHandle);
+                // skip the header.
+                const uint8_t* progData = ((const uint8_t *)ti_GetDataPtr(romHandle)) + 2;
+                memset(romManager.get(), 0xff, ROM_BYTES);
+                if (!loadBytecode(romManager.get(), progData, progData + codeSize)) {
+                    error("<main>", "Failed to load bytecode");
+                }
+                /*
                 debug_printf("Copying %zu bytes from program (%p) to ROM (%p)\n", codeSize, progData, (void*)romManager.get());
                 memcpy(romManager.get(), progData, codeSize);
                 debug_printf("Setting remaing %zu bytes at %p to 0xff\n", (ROM_BYTES - codeSize), (void*)(romManager.get() + codeSize));
                 memset(romManager.get() + codeSize, 0xff, ROM_BYTES - codeSize);
+                //*/
             }
         }
         os_SetFlag(APP, AUTOSCROLL);
