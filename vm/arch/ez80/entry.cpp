@@ -10,6 +10,7 @@
 #include <gc.h>
 
 #include <ti/error.h>
+#include <ti/flags.h>
 #include <fileioc.h>
 #include <debug.h>
 
@@ -192,10 +193,12 @@ int main ()
                 memset(romManager.get() + codeSize, 0xff, ROM_BYTES - codeSize);
             }
         }
-
+        os_SetFlag(APP, AUTOSCROLL);
         if (rom_get (CODE_START+0) != 0xfb ||
             rom_get (CODE_START+1) != 0xd7) {
+            // should never reach this code if above successfully filters
             printf ("*** The hex file was not compiled with PICOBIT\n");
+            errcode = ExitDevAssertFailed;
         } else {
             interpreter ();
 

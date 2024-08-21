@@ -6,13 +6,22 @@
 
 #include <arch/exit-codes.h>
 
-__attribute__((__tiflags__)) void putChar(const char disp) {
-    asm volatile (
-        "call\t0207B8h\n" // PutC
-        :
-        : "a"(disp)
-        :
-    );
+
+#define os_FlagsIY ((uint8_t*)0xD00080)
+
+extern "C" {
+    void outchar(const char disp) {
+        if ('\n' == disp) {
+            os_NewLine();
+        } else {
+            asm volatile (
+            "call\t0207B8h\n" // PutC
+            :
+            : "a"(disp), "iyl"(os_FlagsIY)
+            :
+        );
+        }
+    }
 }
 
 uint8_t fetchMenu(const char* const title, const uint8_t nOptions, const char** const options) {
@@ -25,7 +34,7 @@ uint8_t fetchMenu(const char* const title, const uint8_t nOptions, const char** 
     for(size_t i = 0; i < nOptions; ++i) {
         constexpr static const char shortcuts[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
         if (i < (sizeof(shortcuts) / sizeof(char))) {
-            putChar(shortcuts[i]);
+            outchar(shortcuts[i]);
             os_PutStrFull(": ");
         }
         os_PutStrFull(options[i]);
