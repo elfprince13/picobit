@@ -13,6 +13,9 @@
 #include <fileioc.h>
 #include <debug.h>
 
+#include <arch/exit-codes.h>
+#include <arch/menu.h>
+
 /*
 class bad_free : public std::exception {
     const char* what_;
@@ -118,7 +121,7 @@ extern "C" {
     {
         debug_printf("Error! %s: %s\n", prim, msg);
         snprintf(os_AppErr1, 12, "%s:%s", prim, msg); 
-        std::exit(-1);//throw scheme_error(prim, msg);
+        std::exit(ExitError);//throw scheme_error(prim, msg);
         /*
         // maximum of 12 bytes, must be nul-terminated
         snprintf(os_AppErr1, 12, "%s:%s", prim, msg); 
@@ -130,7 +133,7 @@ extern "C" {
     {
         debug_printf("Type Error! %s: %s\n", prim, type);
         snprintf(os_AppErr2, 12, "%s-%s", prim, type);
-        std::exit(-1);//throw scheme_type_error(prim, type);
+        std::exit(ExitTypeError);//throw scheme_type_error(prim, type);
         /*
         // maximum of 12 bytes, must be nul-terminated
         snprintf(os_AppErr2, 12, "%s-%s", prim, type);
@@ -149,13 +152,34 @@ int main ()
     // sadly ez80 clang can't seem to legalize taking the address of a label?
     //SET_LABEL_BREAKPOINT(sign_off);
 
-	int errcode = 0;
+	RustleExitStatus errcode = ExitSuccess;
     /*try*/ {
         IndirectBumpPointer<uint8, CONFIG_ROM_MEM_PTR> romManager(ROM_BYTES);
-        //rom_mem = BumpPointer<uint8>(182184); // random number larger than user mem to simulate OOM crash
+    
         {
+            const char* romName;
+            void* romVAT = nullptr;
+            debug_printf("Scanning for ROMs\n");
+            char availableRoms[15][9] = {{0}}; 
+            uint8_t numRoms;
+            for(numRoms = 0; numRoms < 15 && (romName = ti_Detect(&romVAT, "\xfb\xd7")); ++numRoms) {
+                debug_printf("Found Rustle ROM image: %s\n", romName);
+                strcpy(availableRoms[numRoms], romName);
+            }
+            if (numRoms == 15) {
+                debug_printf("15 ROMS found but menu can only handle 15 selections currently...some results may be missing\n");
+            }
+            const uint8_t selected = fetchMenu("Select compiled program:", availableRoms, numRoms);
+            if (selected >= numRoms) {
+                if (selected > numRoms) {
+                    debug_printf("fetchMenu broken!! %hhu >= %hhu\n", selected, numRoms);
+                    std::exit(ExitDevAssertFailed);
+                } else {
+                    std::exit(ExitSuccess); // User quit the program
+                }
+            }
             // find the ROM address ( in RAM other otherwise ;) )
-            const TIFile romHandle{"RustlROM", "r"};
+            const TIFile romHandle{ availableRoms[selected] /*"RustlROM"*/, "r"};
             const size_t codeSize = ti_GetSize(romHandle);
             debug_printf("Opened ROM: %zu bytes\n", codeSize);
             if (codeSize > ROM_BYTES) {
@@ -186,6 +210,7 @@ int main ()
     } catch(...) {
         debug_printf("Caught unknown object - not an exception. Yikes!\n");
     }*/
+    // avoid drawing garbage on the screen when we exit.
     memset(ram_mem, 0x00, RAM_BYTES + VEC_BYTES);
     debug_printf("Exiting Rustle\n");
 	return errcode;

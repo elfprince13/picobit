@@ -2,6 +2,7 @@
 #include <picobit.h> // annoyingly include order matters - must come before memory.h
 #include <arch/memory.h>
 
+#include <arch/exit-codes.h>
 #include <ti/vars.h>
 
 #define os_UserMem ((std::byte*)0xD1A881)
@@ -73,7 +74,6 @@ extern "C" {
             void* result = (os_UserMem + os_AsmPrgmSize);
             debug_printf("InsertMem at %p\n", result);
 
-            ENTER_DEBUGGER();
             asm volatile (
                 "call\t020514h\n" // InsertMem
                 : "=e" (result) // output - must use lower byte name for registers
@@ -85,7 +85,7 @@ extern "C" {
             return result;
         } else {
             debug_printf("Not enough memory!\n");
-            std::exit(-1);//throw std::bad_alloc();
+            std::exit(ExitMemoryError);//throw std::bad_alloc();
         }
     }
 
@@ -102,7 +102,6 @@ extern "C" {
                 //
                 //memset(ptr, 0x00, size);
                 //size_t actualDel;
-                ENTER_DEBUGGER();
                 asm volatile (
                     "call\t020590h\n" // DelMem
                     : //"=e"(size), "=c"(actualDel)
@@ -116,10 +115,10 @@ extern "C" {
                 //debug_printf("DelMem released %zu / %zu bytes\n", actualDel, size);
                 //assert(size == actualDel);
             } else {
-                std::exit(-1);//throw bad_free("bump_free: can't free below the bump floor");
+                std::exit(ExitMemoryError);//throw bad_free("bump_free: can't free below the bump floor");
             }
         } else {
-            std::exit(-1);//throw bad_free("bump_free: can't free above the bump floor (may indicate double free?)");
+            std::exit(ExitMemoryError);//throw bad_free("bump_free: can't free above the bump floor (may indicate double free?)");
         }
     }
 
