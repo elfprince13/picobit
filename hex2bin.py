@@ -14,7 +14,7 @@ if __name__ == "__main__":
         hexData = infile.readlines()
     #binData = hex_to_sparse_bin(hexData.replace(":", ""))
     with open(sys.argv[2], 'wb') as outfile:
-        outfile.write(b'\xfb\xd7')
+        outfile.write(b'\xd7\xfb')
         for hexLine in hexData:
             hexLine = hexLine.strip().replace(":", "")
             if hexLine:

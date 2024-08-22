@@ -8,6 +8,14 @@
 #include <gen.primitives.h>
 #endif /* NO_PRIMITIVE_EXPAND */
 
+#ifdef CONFIG_LITTLE_ENDIAN
+#define OP_ARGS_TO_ENTRY(LO8, HI8) (((uint16)(HI8) << 8) | (LO8))
+#define OP_ARGS_TO_ENTRY12(LO4, HI8) (((uint16)(HI8) << 4) | (LO4))
+#else
+#define OP_ARGS_TO_ENTRY(HI8, LO8) (((uint16)(HI8) << 8) | (LO8))
+#define OP_ARGS_TO_ENTRY12(HI4, LO8) (((uint16)(HI4) << 8) | (LO8))
+#endif
+
 /*
  * This pragma turns off GCC warning/error about implicit declaration
  * of primitives.
@@ -260,9 +268,9 @@ dispatch:
 			FETCH_NEXT_BYTECODE();
 
 			IF_TRACE(debug_printf("  (call-toplevel 0x%04x)\n",
-			                ((arg2 << 8) | bytecode) + CODE_START));
+			                OP_ARGS_TO_ENTRY(arg2, bytecode) + CODE_START));
 
-			entry = (arg2 << 8) + bytecode + CODE_START;
+			entry = OP_ARGS_TO_ENTRY(arg2, bytecode) + CODE_START;
 			arg1 = OBJ_NULL;
 
 			build_env (rom_get (entry++));
@@ -283,9 +291,9 @@ dispatch:
 			FETCH_NEXT_BYTECODE();
 
 			IF_TRACE(debug_printf("  (jump-toplevel 0x%04x)\n",
-			                ((arg2 << 8) | bytecode) + CODE_START));
+			                OP_ARGS_TO_ENTRY(arg2, bytecode) + CODE_START));
 
-			entry = (arg2 << 8) + bytecode + CODE_START;
+			entry = OP_ARGS_TO_ENTRY(arg2, bytecode) + CODE_START;
 			arg1 = OBJ_NULL;
 
 			build_env (rom_get (entry++));
@@ -305,9 +313,9 @@ dispatch:
 			FETCH_NEXT_BYTECODE();
 
 			IF_TRACE(debug_printf("  (goto 0x%04x)\n",
-			                (arg2 << 8) + bytecode + CODE_START));
+			                OP_ARGS_TO_ENTRY(arg2, bytecode) + CODE_START));
 
-			pc = (arg2 << 8) + bytecode + CODE_START;
+			pc = OP_ARGS_TO_ENTRY(arg2, bytecode) + CODE_START;
 
 			break;
 
@@ -318,10 +326,10 @@ dispatch:
 			FETCH_NEXT_BYTECODE();
 
 			IF_TRACE(debug_printf("  (goto-if-false 0x%04x)\n",
-			                (arg2 << 8) + bytecode + CODE_START));
+			                OP_ARGS_TO_ENTRY(arg2, bytecode) + CODE_START));
 
 			if (pop() == OBJ_FALSE) {
-				pc = (arg2 << 8) + bytecode + CODE_START;
+				pc = OP_ARGS_TO_ENTRY(arg2, bytecode) + CODE_START;
 			}
 
 			break;
@@ -331,8 +339,7 @@ dispatch:
 			arg2 = bytecode;
 
 			FETCH_NEXT_BYTECODE();
-
-			entry = (arg2 << 8) | bytecode;
+			entry = OP_ARGS_TO_ENTRY(arg2, bytecode);
 
 			IF_TRACE(debug_printf("  (closure 0x%04x)\n", entry));
 
@@ -467,11 +474,11 @@ dispatch:
 
 		FETCH_NEXT_BYTECODE();
 
-		IF_TRACE(debug_printf("  (push [long] 0x%04x)\n", (bytecode_lo4 << 8) + bytecode));
+		IF_TRACE(debug_printf("  (push [long] 0x%04x)\n", OP_ARGS_TO_ENTRY12(bytecode_lo4, bytecode)));
 
 		// necessary since SIXPIC would have kept the result of the shift at 8 bits
 		arg1 = bytecode_lo4;
-		arg1 = (arg1 << 8) | bytecode;
+		arg1 = OP_ARGS_TO_ENTRY12(bytecode_lo4, bytecode);
 		push_arg1();
 
 		goto dispatch;

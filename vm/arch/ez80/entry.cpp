@@ -269,7 +269,7 @@ int main ()
             debug_printf("Scanning for ROMs\n");
             char availableRoms[15][9] = {{0}}; 
             uint8_t numRoms;
-            for(numRoms = 0; numRoms < 15 && (romName = ti_Detect(&romVAT, "\xfb\xd7")); ++numRoms) {
+            for(numRoms = 0; numRoms < 15 && (romName = ti_Detect(&romVAT, "\xd7\xfb")); ++numRoms) {
                 debug_printf("Found Rustle ROM image: %s\n", romName);
                 strcpy(availableRoms[numRoms], romName);
             }
@@ -314,8 +314,8 @@ int main ()
             }
         }
         os_SetFlag(APP, AUTOSCROLL);
-        if (rom_get (CODE_START+0) != 0xfb ||
-            rom_get (CODE_START+1) != 0xd7) {
+        if (rom_get (CODE_START+0) != 0xd7 ||
+            rom_get (CODE_START+1) != 0xfb) {
             // should never reach this code if above successfully filters
             printf ("*** The hex file was not compiled with PICOBIT\n");
             errcode = ExitDevAssertFailed;

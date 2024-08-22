@@ -190,7 +190,12 @@
          (asm-8 (+ #x00 n))]
         [else ; 4 bit opcode, 12 bits operand.
          (inc-instr-count! '---push-constant-2bytes)
-         (asm-16 (+ #xa000 n))]))
+         (cond [asm-big-endian?
+                (asm-16 (+ #xa000 n))]
+               [else
+                (asm-8 (+ #xa0 (remainder n 16)))
+                (asm-8 (+ #x00 (quotient n 16)))]
+              )]))
 
 (define (push-stack n)
   (if (> n 31) ; 3 bit opcode, 5 bits operand
@@ -277,7 +282,7 @@
             (compiler-error "unknown object type" obj)])]))
 
 
-(define (assemble code port)
+(define (assemble code port big-endian?)
 
   ;; Collect constants and globals
   (define-values
@@ -309,7 +314,7 @@
   (let ((constants (sort-constants constants))
         (globals   (sort-globals   globals)))
 
-    (asm-begin! code-start #t)
+    (asm-begin! code-start big-endian?)
 
     ;; Header.
     (asm-16 #xfbd7)

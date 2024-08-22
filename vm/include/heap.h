@@ -45,6 +45,18 @@ extern "C" {
 #define NEG1 (ZERO-1)
 #define POS1 (ZERO+1)
 
+#ifdef CONFIG_LITTLE_ENDIAN
+#define FIELD0_OFFSET 3
+#define FIELD1_OFFSET 2
+#define FIELD2_OFFSET 1
+#define FIELD3_OFFSET 0
+#else
+#define FIELD0_OFFSET 0
+#define FIELD1_OFFSET 1
+#define FIELD2_OFFSET 2
+#define FIELD3_OFFSET 3
+#endif
+
 #ifdef LESS_MACROS
 uint16 OBJ_TO_RAM_ADDR(uint16 o, uint8 f)
 {
@@ -72,20 +84,20 @@ uint16 RAM_TO_VEC_OBJ(uint16 o)
 #ifdef LESS_MACROS
 uint8 ram_get_field0(uint16 o)
 {
-	return ram_get (OBJ_TO_RAM_ADDR(o,0));
+	return ram_get (OBJ_TO_RAM_ADDR(o,FIELD0_OFFSET));
 }
 void  ram_set_field0(uint16 o, uint8 val)
 {
-	ram_set (OBJ_TO_RAM_ADDR(o,0), val);
+	ram_set (OBJ_TO_RAM_ADDR(o,FIELD0_OFFSET), val);
 }
 uint8 rom_get_field0(uint16 o)
 {
-	return rom_get (OBJ_TO_ROM_ADDR(o,0));
+	return rom_get (OBJ_TO_ROM_ADDR(o,FIELD0_OFFSET));
 }
 #else
-#define ram_get_field0(o) ram_get (OBJ_TO_RAM_ADDR(o,0))
-#define ram_set_field0(o,val) ram_set (OBJ_TO_RAM_ADDR(o,0), val)
-#define rom_get_field0(o) rom_get (OBJ_TO_ROM_ADDR(o,0))
+#define ram_get_field0(o) ram_get (OBJ_TO_RAM_ADDR(o,FIELD0_OFFSET))
+#define ram_set_field0(o,val) ram_set (OBJ_TO_RAM_ADDR(o,FIELD0_OFFSET), val)
+#define rom_get_field0(o) rom_get (OBJ_TO_ROM_ADDR(o,FIELD0_OFFSET))
 #endif
 
 #ifdef LESS_MACROS
@@ -126,52 +138,53 @@ void  ram_set_gc_tag1(uint16 o, uint8 tag)
 #endif
 
 #ifdef LESS_MACROS
+#error "Must update code paths to support little endian config flag"
 uint8 ram_get_field1(uint16 o)
 {
-	return ram_get (OBJ_TO_RAM_ADDR(o,1));
+	return ram_get (OBJ_TO_RAM_ADDR(o,FIELD1_OFFSET));
 }
 uint8 ram_get_field2(uint16 o)
 {
-	return ram_get (OBJ_TO_RAM_ADDR(o,2));
+	return ram_get (OBJ_TO_RAM_ADDR(o,FIELD2_OFFSET));
 }
 uint8 ram_get_field3(uint16 o)
 {
-	return ram_get (OBJ_TO_RAM_ADDR(o,3));
+	return ram_get (OBJ_TO_RAM_ADDR(o,FIELD3_OFFSET));
 }
 void  ram_set_field1(uint16 o, uint8 val)
 {
-	ram_set (OBJ_TO_RAM_ADDR(o,1), val);
+	ram_set (OBJ_TO_RAM_ADDR(o,FIELD1_OFFSET), val);
 }
 void  ram_set_field2(uint16 o, uint8 val)
 {
-	ram_set (OBJ_TO_RAM_ADDR(o,2), val);
+	ram_set (OBJ_TO_RAM_ADDR(o,FIELD2_OFFSET), val);
 }
 void  ram_set_field3(uint16 o, uint8 val)
 {
-	ram_set (OBJ_TO_RAM_ADDR(o,3), val);
+	ram_set (OBJ_TO_RAM_ADDR(o,FIELD3_OFFSET), val);
 }
 uint8 rom_get_field1(uint16 o)
 {
-	return rom_get (OBJ_TO_ROM_ADDR(o,1));
+	return rom_get (OBJ_TO_ROM_ADDR(o,FIELD1_OFFSET));
 }
 uint8 rom_get_field2(uint16 o)
 {
-	return rom_get (OBJ_TO_ROM_ADDR(o,2));
+	return rom_get (OBJ_TO_ROM_ADDR(o,FIELD2_OFFSET));
 }
 uint8 rom_get_field3(uint16 o)
 {
-	return rom_get (OBJ_TO_ROM_ADDR(o,3));
+	return rom_get (OBJ_TO_ROM_ADDR(o,FIELD3_OFFSET));
 }
 #else
-#define ram_get_field1(o) ram_get (OBJ_TO_RAM_ADDR(o,1))
-#define ram_get_field2(o) ram_get (OBJ_TO_RAM_ADDR(o,2))
-#define ram_get_field3(o) ram_get (OBJ_TO_RAM_ADDR(o,3))
-#define ram_set_field1(o,val) ram_set (OBJ_TO_RAM_ADDR(o,1), val)
-#define ram_set_field2(o,val) ram_set (OBJ_TO_RAM_ADDR(o,2), val)
-#define ram_set_field3(o,val) ram_set (OBJ_TO_RAM_ADDR(o,3), val)
-#define rom_get_field1(o) rom_get (OBJ_TO_ROM_ADDR(o,1))
-#define rom_get_field2(o) rom_get (OBJ_TO_ROM_ADDR(o,2))
-#define rom_get_field3(o) rom_get (OBJ_TO_ROM_ADDR(o,3))
+#define ram_get_field1(o) ram_get (OBJ_TO_RAM_ADDR(o,FIELD1_OFFSET))
+#define ram_get_field2(o) ram_get (OBJ_TO_RAM_ADDR(o,FIELD2_OFFSET))
+#define ram_get_field3(o) ram_get (OBJ_TO_RAM_ADDR(o,FIELD3_OFFSET))
+#define ram_set_field1(o,val) ram_set (OBJ_TO_RAM_ADDR(o,FIELD1_OFFSET), val)
+#define ram_set_field2(o,val) ram_set (OBJ_TO_RAM_ADDR(o,FIELD2_OFFSET), val)
+#define ram_set_field3(o,val) ram_set (OBJ_TO_RAM_ADDR(o,FIELD3_OFFSET), val)
+#define rom_get_field1(o) rom_get (OBJ_TO_ROM_ADDR(o,FIELD1_OFFSET))
+#define rom_get_field2(o) rom_get (OBJ_TO_ROM_ADDR(o,FIELD2_OFFSET))
+#define rom_get_field3(o) rom_get (OBJ_TO_ROM_ADDR(o,FIELD3_OFFSET))
 #endif
 
 obj cons (obj car, obj cdr);

@@ -31,4 +31,5 @@
 (define show-asm?            (make-parameter #f))
 (define show-parsed?         (make-parameter #f))
 (define show-post-front-end? (make-parameter #f))
+(define little-endian? (make-parameter #f))
 (define stats?               (make-parameter #f))
