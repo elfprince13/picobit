@@ -131,7 +131,7 @@ class IndirectBumpPointer {
 public:
     template<typename ErrCallback = std::nullptr_t>
     IndirectBumpPointer(size_t count, [[maybe_unused]] ErrCallback errCallback = ErrCallback{}) {
-#ifndef NDBEUG
+#ifndef NDEBUG
         alive += 1;
         if (1 == alive) {
 #endif
@@ -139,7 +139,7 @@ public:
             debug_printf("Backing up *%p = %p\n", (void*)Ptr, backup);
             *(T**)Ptr = reinterpret_cast<T*>(bump_malloc(count * sizeof(T)));
             CleanupHook::registerCleanup(this);
-#ifndef NDBEUG
+#ifndef NDEBUG
         } else {
             if constexpr (!is_same<ErrCallback, std::nullptr_t>::value) {
                 errCallback(alive);
