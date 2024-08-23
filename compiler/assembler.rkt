@@ -252,32 +252,37 @@
      ;; see the vm source for a description of encodings
      (cond [(exact-integer? obj)
             (let ([hi (encode-constant d3 constants)])
-              (asm-16 hi)    ; pointer to hi
-              (asm-16 obj))] ; bits 0-15
+              (asm-32 (+
+                       (* #x10000 hi) ; pointer to hi
+                       (modulo obj #x10000))))]    ; bits 0-15
            [(pair? obj)
             (let ([obj-car (encode-constant (car obj) constants)]
                   [obj-cdr (encode-constant (cdr obj) constants)])
-              (asm-16 (+ #x8000 obj-car))
-              (asm-16 (+ #x0000 obj-cdr)))]
+              (asm-32 (+
+                       (* #x10000 (+ #x8000 obj-car))
+                       (+ #x0000 obj-cdr))))]
            [(symbol? obj)
             (asm-32 #x80002000)]
            [(string? obj)
             (let ([obj-enc (encode-constant d3 constants)])
-              (asm-16 (+ #x8000 obj-enc))
-              (asm-16 #x4000))]
+              (asm-32
+               (+ (* #x10000 (+ #x8000 obj-enc))
+                #x4000)))]
            [(vector? obj) ; ordinary vectors are stored as lists
             (let ([obj-car (encode-constant (car d3) constants)]
                   [obj-cdr (encode-constant (cdr d3) constants)])
-              (asm-16 (+ #x8000 obj-car))
-              (asm-16 (+ #x0000 obj-cdr)))]
+              (asm-32 (+
+                       (* #x10000 (+ #x8000 obj-car))
+                       (+ #x0000 obj-cdr))))]
            [(u8vector? obj)
             (let ([obj-enc (encode-constant d3 constants)]
                   [l       (length d3)])
               ;; length is stored raw, not encoded as an object
               ;; however, the bytes of content are encoded as
               ;; fixnums
-              (asm-16 (+ #x8000 l))
-              (asm-16 (+ #x6000 obj-enc)))]
+              (asm-32 (+
+                       (* #x10000 (+ #x8000 l))
+                       (+ #x6000 obj-enc))))]
            [else
             (compiler-error "unknown object type" obj)])]))
 

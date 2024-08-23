@@ -11,6 +11,7 @@ choice
 		select ARCH_32BIT
 		select ERROR_HANDLING
 		select DEBUG_STRINGS
+		#select VM_DEBUG
 		help
 		  Build Picobit as a host (Linux) executable for easy
 		  debugging.
@@ -27,6 +28,7 @@ choice
 		select ERROR_HANDLING
 		select DEBUG_STRINGS
 		select CUSTOM_DEBUG_PRINTF
+		select LITTLE_ENDIAN
 endchoice
 
 config ERROR_HANDLING
@@ -43,6 +45,9 @@ config ARCH_16BIT
 
 config ARCH_32BIT
 	bool
+
+config LITTLE_ENDIAN
+	bool "VM uses little-endian bytecode"
 
 config ARCH
 	string

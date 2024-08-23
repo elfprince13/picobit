@@ -36,7 +36,9 @@ uint8 glovars;
 
 void push_arg1 ()
 {
+	IF_TRACE((debug_printf("push_arg1 [before]: "), show_obj_bytes(env), debug_printf("\n")));
 	env = cons (arg1, env);
+	IF_TRACE((debug_printf("push_arg1 [ after]: "), show_obj_bytes(env), debug_printf("\n")));
 	arg1 = OBJ_FALSE;
 }
 
@@ -272,6 +274,7 @@ dispatch:
 
 			entry = OP_ARGS_TO_ENTRY(arg2, bytecode) + CODE_START;
 			arg1 = OBJ_NULL;
+			arg2 = OBJ_FALSE;
 
 			build_env (rom_get (entry++));
 			save_cont ();
@@ -280,8 +283,7 @@ dispatch:
 			pc = entry;
 
 			arg1 = OBJ_FALSE;
-			arg2 = OBJ_FALSE;
-
+			
 			break;
 
 		case 1: // jump-toplevel
@@ -295,6 +297,7 @@ dispatch:
 
 			entry = OP_ARGS_TO_ENTRY(arg2, bytecode) + CODE_START;
 			arg1 = OBJ_NULL;
+			arg2 = OBJ_FALSE;
 
 			build_env (rom_get (entry++));
 
@@ -302,7 +305,6 @@ dispatch:
 			pc = entry;
 
 			arg1 = OBJ_FALSE;
-			arg2 = OBJ_FALSE;
 
 			break;
 
@@ -340,6 +342,7 @@ dispatch:
 
 			FETCH_NEXT_BYTECODE();
 			entry = OP_ARGS_TO_ENTRY(arg2, bytecode);
+			arg2 = OBJ_FALSE;
 
 			IF_TRACE(debug_printf("  (closure 0x%04x)\n", entry));
 
@@ -350,10 +353,9 @@ dispatch:
 			                            entry >> 8,
 			                            (entry & 0xff));
 
+			arg3 = OBJ_FALSE;
 			push_arg1();
 
-			arg2 = OBJ_FALSE;
-			arg3 = OBJ_FALSE;
 
 			break;
 
@@ -474,7 +476,7 @@ dispatch:
 
 		FETCH_NEXT_BYTECODE();
 
-		IF_TRACE(debug_printf("  (push [long] 0x%04x)\n", OP_ARGS_TO_ENTRY12(bytecode_lo4, bytecode)));
+		IF_TRACE((debug_printf("  (push [long] "), show_obj_bytes(OP_ARGS_TO_ENTRY12(bytecode_lo4, bytecode)), debug_printf(")\n")));
 
 		// necessary since SIXPIC would have kept the result of the shift at 8 bits
 		arg1 = bytecode_lo4;

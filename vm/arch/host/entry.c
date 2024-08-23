@@ -188,9 +188,13 @@ int main (int argc, char *argv[])
 	if (!read_hex_file (argv[1])) {
 		printf ("*** Could not read hex file \"%s\"\n", argv[1]);
 	} else {
-		fprintf(stderr, "Loading ROM\n");
+#ifdef CONFIG_LITTLE_ENDIAN
+		if (rom_get (CODE_START+0) != 0xd7 ||
+		    rom_get (CODE_START+1) != 0xfb) {
+#else
 		if (rom_get (CODE_START+0) != 0xfb ||
 		    rom_get (CODE_START+1) != 0xd7) {
+#endif
 			printf ("*** The hex file was not compiled with PICOBIT\n");
 		} else if (argc == 2) {
 			interpreter ();

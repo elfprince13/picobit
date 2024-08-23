@@ -1,9 +1,22 @@
+ifdef_any_of = $(filter-out undefined,$(foreach v,$(1),$(origin $(v))))
+
+ifneq ($(call ifdef_any_of,CONFIG_VM_DEBUG CONFIG_GC_DEBUG),)
+CFLAGS += -g3 -Og
+endif
+
+
 arch-y   += entry.c primitives.c
 stdlib-y += stdlib.scm
 
 load-address := \#x0000
 
-arch-all: picobit-vm
+ifdef CONFIG_LITTLE_ENDIAN
+conf-suffix := -le
+else
+conf-suffix := -be
+endif
 
-picobit-vm: $(obj-y) .config
-	cc $(CFLAGS) -g -o $@ $(obj-y)
+arch-all: picobit-vm$(conf-suffix)
+
+picobit-vm$(conf-suffix): $(obj-y) .config
+	clang $(CFLAGS) -g -o $@ $(obj-y)

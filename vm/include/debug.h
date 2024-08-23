@@ -13,7 +13,7 @@
 #ifdef debug_printf
 #error CUSTOM_DEBUG_PRINTF is not selected in configuration but debug_printf was defined.
 #endif
-#define debug_printf printf
+#define debug_printf(...) fprintf(stderr, ##__VA_ARGS__)
 #endif
 #else
 #ifdef debug_printf
@@ -41,6 +41,7 @@ extern "C" {
 void show_type (obj o);
 void show_obj (obj o);
 void show_state (rom_addr pc);
+void show_obj_bytes(obj o);
 #ifdef __cplusplus
 }
 #endif
@@ -48,5 +49,6 @@ void show_state (rom_addr pc);
 #define show_type(o)
 #define show_obj(o)
 #define show_state(pc)
+#define show_obj_bytes(o)
 #endif
 #endif

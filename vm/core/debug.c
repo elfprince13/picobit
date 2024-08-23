@@ -2,6 +2,7 @@
 #include <bignum.h>
 #include <debug.h>
 #include <stdio.h>
+#include <dispatch.h>
 
 void show_type (obj o)
 {
@@ -141,11 +142,28 @@ loop:
 }
 
 void show_state (rom_addr pc) {
+	uint8 byteCode = rom_get (pc);
 	debug_printf ("\n");
-	debug_printf ("pc=0x%04x bytecode=0x%02x env=", pc, rom_get (pc));
+	debug_printf ("pc=0x%04x bytecode=0x", pc);
+	if (PUSH_CONSTANT_LONG == (byteCode >> 4)) {
+		debug_printf("%01x_ ", byteCode >> 4);
+	} else {
+		debug_printf("%02x", byteCode);
+	}
+	debug_printf(" env=");
 	show_obj (env);
 	debug_printf (" cont=");
 	show_obj (cont);
 	debug_printf ("\n");
 	fflush (stdout);
+}
+
+void show_obj_bytes (obj o) {
+	if(IN_RAM(o)) {
+		debug_printf("RAM:%04hx = %02hx,%02hx,%02hx,%02hx", 
+		o, ram_get_field0(o), ram_get_field1(o), ram_get_field2(o), ram_get_field3(o));
+	} else {
+		debug_printf("ROM:%04hx = %02hx,%02hx,%02hx,%02hx", 
+		o, rom_get_field0(o), rom_get_field1(o), rom_get_field2(o), rom_get_field3(o));
+	}
 }

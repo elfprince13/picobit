@@ -2,6 +2,14 @@
 
 (require rackunit rackunit/text-ui)
 
+(define little-endian? (make-parameter #f))
+
+(define (invoke-compiler file-str)
+  (system* "./picobit" (if little-endian? "-L" "-B") file-str))
+
+(define (invoke-vm hex)
+  (system* (string-append "./vm/picobit-vm" (if little-endian? "-le" "-be")) hex))
+
 ;; This tests whether the programs produce the expected output.
 ;; This is a pretty weak equivalence, and doesn't catch optimization
 ;; regressions. Checking for bytecode equality would be too strong an
@@ -34,7 +42,7 @@
   (run-one
    file
    (lambda (file-str hex expected input)
-     (system* "./picobit" file-str)
+     (invoke-compiler file-str)
      (test-case "compilation" (check-true (file-exists? hex)))
      (when (file-exists? hex)
        (define out (open-output-string))
@@ -43,7 +51,7 @@
                                                (open-input-string ""))]
                       [current-output-port out]
                       [current-error-port  out]) ; run-fail-execute needs that
-         (system* "./picobit-vm" hex))
+         (invoke-vm hex))
        (test-case "execution"
                   (check-equal? (get-output-string out)
                                 (file->string expected)))))))
@@ -54,7 +62,7 @@
    (lambda (file-str hex expected input)
      (define err (open-output-string))
      (parameterize ([current-error-port err])
-       (system* "./picobit" file-str))
+       (invoke-compiler file-str))
      (test-case "compilation error"
                 (check-false (file-exists? hex))
                 (check-equal? (get-output-string err)
@@ -72,20 +80,27 @@
           [(equal? dir "tests/fail/execute/")
            (run-fail-execute file)])))
 
-(define args (current-command-line-arguments))
-
-(void
- (run-tests
-  (cond [(>= (vector-length args) 1) ; run one
-         (run-single (string->path (vector-ref args 0)))]
-        [else ; run all
-         (make-test-suite
-          "PICOBIT tests"
-          (filter (lambda (x) (not (void? x)))
-                  (append
-                   (for/list ([file (in-directory "./tests/succeed/")])
-                     (run-succeed file))
-                   (for/list ([file (in-directory "./tests/fail/compile/")])
-                     (run-fail-compile file))
-                   (for/list ([file (in-directory "./tests/fail/execute/")])
-                     (run-fail-execute file)))))])))
+(command-line
+ #:once-any
+ [("-L" "--little-endian")
+  "Generate little-endian variant byte code"
+  (little-endian? #t)]
+ [("-B" "--big-endian")
+  "Generate big-endian variant byte code"
+  (little-endian? #f)]
+ #:args args
+ (void
+  (run-tests
+   (cond [(not (null? args)) ; run one
+          (run-single (string->path (car args)))]
+         [else ; run all
+          (make-test-suite
+           "PICOBIT tests"
+           (filter (lambda (x) (not (void? x)))
+                   (append
+                    (for/list ([file (in-directory "./tests/succeed/")])
+                      (run-succeed file))
+                    (for/list ([file (in-directory "./tests/fail/compile/")])
+                      (run-fail-compile file))
+                    (for/list ([file (in-directory "./tests/fail/execute/")])
+                      (run-fail-execute file)))))]))))

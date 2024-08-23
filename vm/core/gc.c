@@ -195,17 +195,17 @@ void gc ()
 
 	IF_TRACE(debug_printf("\nGC BEGINS\n"));
 
-	IF_GC_TRACE(debug_printf("arg1\n"));
+	IF_GC_TRACE((debug_printf("arg1: "),show_obj_bytes(arg1),debug_printf("\n")));
 	mark (arg1);
-	IF_GC_TRACE(debug_printf("arg2\n"));
+	IF_GC_TRACE((debug_printf("arg2: "),show_obj_bytes(arg2),debug_printf("\n")));
 	mark (arg2);
-	IF_GC_TRACE(debug_printf("arg3\n"));
+	IF_GC_TRACE((debug_printf("arg3: "),show_obj_bytes(arg3),debug_printf("\n")));
 	mark (arg3);
-	IF_GC_TRACE(debug_printf("arg4\n"));
+	IF_GC_TRACE((debug_printf("arg4: "),show_obj_bytes(arg4),debug_printf("\n")));
 	mark (arg4);
-	IF_GC_TRACE(debug_printf("cont\n"));
+	IF_GC_TRACE((debug_printf("cont: "),show_obj_bytes(cont),debug_printf("\n")));
 	mark (cont);
-	IF_GC_TRACE(debug_printf("env\n"));
+	IF_GC_TRACE((debug_printf("env: "),show_obj_bytes(env),debug_printf("\n")));
 	mark (env);
 
 #ifdef CONFIG_BIGNUM_LONG

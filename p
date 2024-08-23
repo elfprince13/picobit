@@ -2,11 +2,28 @@
 #lang racket
 
 (define (usage)
-  (printf "usage: p path/to/file.scm\n")
+  (printf "usage: p [-L|-B] path/to/file.scm\n")
   (exit 1))
 
-(if (= (vector-length (current-command-line-arguments)) 1)
-    (let ([file (vector-ref (current-command-line-arguments) 0)])
-      (void (and (system* "picobit"    (path-replace-suffix file ".scm"))
-                 (system* "picobit-vm" (path-replace-suffix file ".hex")))))
-    (usage))
+
+; TODO: DE-DUPLICATE THIS CODE WITH RUN-TESTS
+(define little-endian? (make-parameter #f))
+
+(define (invoke-compiler file-str)
+  (system* "./picobit" (if little-endian? "-L" "-B") file-str))
+
+(define (invoke-vm hex)
+  (system* (string-append "./vm/picobit-vm" (if little-endian? "-le" "-be")) hex))
+; END TODO
+
+(command-line
+ #:once-any
+ [("-L" "--little-endian")
+  "Generate little-endian variant byte code"
+  (little-endian? #t)]
+ [("-B" "--big-endian")
+  "Generate big-endian variant byte code"
+  (little-endian? #f)]
+ #:args (file)
+ (void (and (invoke-compiler (path-replace-suffix file ".scm"))
+            (invoke-vm (path-replace-suffix file ".hex")))))
