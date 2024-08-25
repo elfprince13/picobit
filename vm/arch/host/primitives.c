@@ -401,7 +401,7 @@ PRIMITIVE(receive-packet-to-u8vector, receive_packet_to_u8vector, 1)
 	}
 
 	if (header.len > 0) { // we have received a packet, write it in the vector
-		arg2 = VEC_TO_RAM_OBJ(ram_get_cdr (arg1));
+		arg2 = _SYS_VEC_TO_RAM_OBJ(ram_get_cdr (arg1));
 		arg1 = header.len; // we return the length of the received packet
 		a1 = 0;
 
@@ -438,7 +438,7 @@ PRIMITIVE(send-packet-from-u8vector, send_packet_from_u8vector, 2)
 		ERROR("send-packet-from-u8vector", "packet cannot be longer than vector");
 	}
 
-	arg1 = VEC_TO_RAM_OBJ(ram_get_cdr (arg1));
+	arg1 = _SYS_VEC_TO_RAM_OBJ(ram_get_cdr (arg1));
 
 	// copy the packet to the output buffer
 	while (a1 < a2) {

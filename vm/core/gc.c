@@ -27,7 +27,7 @@ void init_ram_heap ()
 		o--;
 	}
 
-	free_vec_pointer = VEC_TO_RAM_OBJ(MIN_VEC_ENCODING);
+	free_vec_pointer = _SYS_VEC_TO_RAM_OBJ(MIN_VEC_ENCODING);
 
 	for (i = 0; i < glovars; i++) {
 		set_global (i, OBJ_FALSE);
@@ -157,7 +157,7 @@ void sweep ()
 			if (RAM_VECTOR_P(visit)) {
 				// when we sweep a vector, we also have to mark its contents as free
 				// we subtract 1 to get to the header of the block, before the data
-				obj o = VEC_TO_RAM_OBJ(ram_get_cdr (visit) - 1);
+				obj o = _SYS_VEC_TO_RAM_OBJ(ram_get_cdr (visit) - 1);
 				ram_set_gc_tag0 (o, 0); // mark the block as free
 			}
 
@@ -288,7 +288,7 @@ void compact ()
 	  left if there's free space before it.
 	*/
 
-	obj cur = VEC_TO_RAM_OBJ(MIN_VEC_ENCODING);
+	obj cur = _SYS_VEC_TO_RAM_OBJ(MIN_VEC_ENCODING);
 	obj prev = 0;
 
 	uint16 cur_size;
@@ -303,7 +303,7 @@ void compact ()
 			} else { // prev is free, but not cur, move cur to start at prev
 				// fix header in the object heap to point to the data's new
 				// location
-				ram_set_cdr(ram_get_cdr(cur), RAM_TO_VEC_OBJ(prev+1));
+				ram_set_cdr(ram_get_cdr(cur), _SYS_RAM_TO_VEC_OBJ(prev+1));
 
 				while(cur_size--) { // copy cur's data, which includes header
 					ram_set_field0(prev, ram_get_field0(cur));
@@ -345,7 +345,7 @@ obj alloc_vec_cell (uint16 n, obj from)
 	// this includes a 4-byte vector space header
 	n = ((n+3) >> 2) + 1;
 
-	while ((VEC_TO_RAM_OBJ(MAX_VEC_ENCODING) - free_vec_pointer) < n) {
+	while ((_SYS_VEC_TO_RAM_OBJ(MAX_VEC_ENCODING) - free_vec_pointer) < n) {
 		// free space too small, trigger gc
 		if (gc_done) { // we gc'd, but no space is big enough for the vector
 			ERROR("alloc_vec_cell", "no room for vector");
@@ -371,7 +371,7 @@ obj alloc_vec_cell (uint16 n, obj from)
 	ram_set_gc_tag0 (o, GC_TAG_0_LEFT); // mark block as used
 
 	// return pointer to start of data, skipping the header
-	return RAM_TO_VEC_OBJ(o + 1);
+	return _SYS_RAM_TO_VEC_OBJ(o + 1);
 }
 
 #ifdef CONFIG_GC_STATISTICS_PRIMITIVE

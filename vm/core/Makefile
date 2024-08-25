@@ -1,5 +1,6 @@
 core-y += dispatch.c heap.c gc.c \
 	primitives-list.c primitives-numeric.c \
+	primitives-string.c \
 	primitives-util.c primitives-vector.c \
 	primitives-control.c
 

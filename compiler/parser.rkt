@@ -212,7 +212,7 @@
                   '(quote quasiquote unquote unquote-splicing lambda if set!
                     cond and or case let let* letrec begin do define delay))
      (compiler-error "the compiler does not implement the special form"
-                     (syntax->datum #'op))]
+                     (syntax->datum #'op) "in" (~v expr))]
     [(op args ...) ; call
      (define exprs
        (cons (parse 'value #'op env #t) ; in operator position

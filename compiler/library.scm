@@ -139,36 +139,50 @@
 
 (define #%box-set! set-car!)
 
+(define make-string
+  (lambda nc
+    (#%make-string (car nc) (cadr nc))))
+
 (define string
   (lambda chars
     (list->string chars)))
 
-(define string-length
-  (lambda (str)
-    (length (string->list str))))
-
 (define string-append
   (lambda (str1 str2)
-    (list->string (append (string->list str1) (string->list str2)))))
+    (let* ((len1 (string-length str1))
+           (len2 (string-length str2))
+           (len3 (+ len1 len2))
+           (str3 (make-string len3 #\0)))
+     (letrec
+         ((copy1
+           (lambda (i)
+             (if (< i len1)
+                 (begin
+                   (string-set! str3 i (string-ref str1 i))
+                   (copy1 (#%+ 1 i)))
+                 (copy2 i 0))))
+          (copy2
+           (lambda (i j)
+             (if (< j len2)
+                 (begin
+                   (string-set! str3 i (string-ref str2 j))
+                   (copy2 (#%+ 1 i) (#%+ 1 j)))
+                 str3))))
+       (copy1 0)))))
 
 (define substring
   (lambda (str start end)
-    (list->string
-     (#%substring-aux2
-      (#%substring-aux1 (string->list str) start)
-      (#%- end start)))))
-
-(define #%substring-aux1
-  (lambda (lst n)
-    (if (>= n 1)
-        (#%substring-aux1 (cdr lst) (#%- n 1))
-        lst)))
-
-(define #%substring-aux2
-  (lambda (lst n)
-    (if (>= n 1)
-        (cons (car lst) (#%substring-aux2 (cdr lst) (#%- n 1)))
-        '())))
+    (let* ((len (#%- end start))
+           (result (make-string len #\0)))
+      (letrec
+          ((copy
+            (lambda (i j)
+              (if (< i len)
+                  (begin
+                    (string-set! result i (string-ref str j))
+                    (copy (#%+ 1 i) (#%+ 1 j)))
+                  result))))
+        (copy 0 start)))))
 
 (define map
   (lambda (f lst)

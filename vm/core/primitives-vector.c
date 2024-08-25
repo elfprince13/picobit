@@ -41,8 +41,9 @@ PRIMITIVE(u8vector-ref, u8vector_ref, 2)
 		if (ram_get_car (arg1) <= a2) {
 			ERROR("u8vector-ref.0", "vector index invalid");
 		}
-
-		arg1 = VEC_TO_RAM_OBJ(ram_get_cdr (arg1));
+		arg1 = ram_get_cdr (arg1);
+		arg1 = VEC_TO_RAM_BASE_ADDR(arg1);
+		arg1 = ram_get(arg1 + arg2);
 	} else if (IN_ROM(arg1)) {
 		if (!ROM_VECTOR_P(arg1)) {
 			TYPE_ERROR("u8vector-ref.1", "vector");
@@ -51,27 +52,14 @@ PRIMITIVE(u8vector-ref, u8vector_ref, 2)
 		if (rom_get_car (arg1) <= a2) {
 			ERROR("u8vector-ref.1", "vector index invalid");
 		}
-
 		arg1 = rom_get_cdr (arg1);
-
-		while (a2--) {
-			arg1 = rom_get_cdr (arg1);
-		}
-
-		// the contents are already encoded as fixnums
-		arg1 = rom_get_car (arg1);
-		arg2 = OBJ_FALSE;
-		arg3 = OBJ_FALSE;
-		arg4 = OBJ_FALSE;
-		return;
+		arg1 = VEC_TO_ROM_BASE_ADDR(arg1);
+		arg1 = rom_get(arg1 + arg2);
 	} else {
 		TYPE_ERROR("u8vector-ref.2", "vector");
 	}
 
-	arg1 += (a2 >> 2);
-	a2 %= 4;
-
-	arg1 = encode_int (ram_get (OBJ_TO_RAM_ADDR(arg1, a2)));
+	arg1 = encode_int (arg1);
 
 	arg2 = OBJ_FALSE;
 	arg3 = OBJ_FALSE;
@@ -97,15 +85,12 @@ PRIMITIVE_UNSPEC(u8vector-set!, u8vector_set, 3)
 			ERROR("u8vector-set!", "vector index invalid");
 		}
 
-		arg1 = VEC_TO_RAM_OBJ(ram_get_cdr (arg1));
+		arg1 = VEC_TO_RAM_BASE_ADDR(ram_get_cdr (arg1));
 	} else {
 		TYPE_ERROR("u8vector-set!.1", "vector");
 	}
 
-	arg1 += (a2 >> 2);
-	a2 %= 4;
-
-	ram_set (OBJ_TO_RAM_ADDR(arg1, a2), a3);
+	ram_set (arg1 + a2, a3);
 
 	arg1 = OBJ_FALSE;
 	arg2 = OBJ_FALSE;
