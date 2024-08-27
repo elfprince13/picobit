@@ -114,7 +114,7 @@ loop:
 			} else if ((in_ram && RAM_SYMBOL_P(o)) || (!in_ram && ROM_SYMBOL_P(o))) {
 				debug_printf ("#<symbol %03X>", o & 0xff);
 			} else if ((in_ram && RAM_STRING_P(o)) || (!in_ram && ROM_STRING_P(o))) {
-				debug_printf ("#<string %03X>", o & 0xff);
+				debug_printf ("#<string: %s>", (RAM_STRING_P(o) ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o)))));
 			} else if ((in_ram && RAM_VECTOR_P(o)) || (!in_ram && ROM_VECTOR_P(o))) {
 				debug_printf ("#<vector %d>", o);
 			} else {

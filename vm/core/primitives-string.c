@@ -3,6 +3,7 @@
 #include <primitives.h>
 #include <gc.h>
 #include <string.h>
+#include <debug.h>
 
 // TODO: file is heavily duplicative of vector file
 
@@ -135,11 +136,12 @@ PRIMITIVE(string->list, string2list, 1)
 		a1 = ram_get_car (arg1); // length - encoded directly
 		arg1 = VEC_TO_RAM_BASE_ADDR(ram_get_cdr (arg1));
 		a2 = OBJ_NULL;
+		//IF_TRACE(debug_printf("string->list: %hu chars\n", a1));
 		while (a1) {
 			a1 -= 1;
 			a2 = cons(encode_int(ram_get(arg1 + a1)), a2);
+			//IF_TRACE((debug_printf("string->list: %hu ", a1),show_obj(a2),debug_printf("\n")));
 		}
-		arg1 = ram_get_car (arg1);
 	} else if (IN_ROM(arg1)) {
 		if (!ROM_STRING_P(arg1)) {
 			TYPE_ERROR("string->list.1", "string");
@@ -147,28 +149,32 @@ PRIMITIVE(string->list, string2list, 1)
 		a1 = rom_get_car (arg1); // length - encoded directly
 		arg1 = VEC_TO_ROM_BASE_ADDR(rom_get_cdr (arg1));
 		a2 = OBJ_NULL;
+		//IF_TRACE(debug_printf("string->list: %hu chars\n", a1));
 		while (a1) {
 			a1 -= 1;
 			a2 = cons(encode_int(rom_get(arg1 + a1)), a2);
+			//IF_TRACE((debug_printf("string->list: %hu ", a1),show_obj(a2),debug_printf("\n")));
 		}
-		arg1 = rom_get_car (arg1);
 	} else {
 		TYPE_ERROR("string->list.2", "string");
 	}
+	arg1 = a2;
 }
 
 PRIMITIVE(list->string, list2string, 1)
 {
 	arg2 = arg1;
 	a1 = 0; // length accumulator
+	IF_TRACE((debug_printf("List: "), show_obj(arg2), debug_printf(" -> string\n")));
 	while (arg2 != OBJ_NULL) {
+		IF_TRACE((debug_printf("Stepping arg2 = (cdr arg2): "), show_obj_bytes(arg2), debug_printf(" "), show_obj(arg2), debug_printf("\n")));
 		if (IN_RAM(arg2)) {
-			if (!RAM_STRING_P(arg2)) {
+			if (!RAM_PAIR_P(arg2)) {
 				TYPE_ERROR("list->string.0", "pair");
 			}
 			arg2 = ram_get_cdr(arg2);
 		} else if (IN_ROM(arg2)) {
-			if (!ROM_STRING_P(arg2)) {
+			if (!ROM_PAIR_P(arg2)) {
 				TYPE_ERROR("list->string.0", "pair");
 			}
 			arg2 = rom_get_cdr(arg2);
@@ -188,13 +194,13 @@ PRIMITIVE(list->string, list2string, 1)
 	a1 = 0; // index accumulator
 	while (arg2 != OBJ_NULL) {
 		if (IN_RAM(arg2)) {
-			if (!RAM_STRING_P(arg2)) {
+			if (!RAM_PAIR_P(arg2)) {
 				TYPE_ERROR("list->string.2", "pair");
 			}
 			a3 = ram_get_car(arg2);
 			arg2 = ram_get_cdr(arg2);
 		} else if (IN_ROM(arg2)) {
-			if (!ROM_STRING_P(arg2)) {
+			if (!ROM_PAIR_P(arg2)) {
 				TYPE_ERROR("list->string.2", "pair");
 			}
 			a3 = rom_get_car(arg2);
