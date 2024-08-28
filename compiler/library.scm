@@ -140,8 +140,8 @@
 (define #%box-set! set-car!)
 
 (define make-string
-  (lambda nc
-    (#%make-string (car nc) (cadr nc))))
+  (lambda (n . c)
+    (#%make-string n (if (pair? c) (car c) 0))))
 
 (define string
   (lambda chars
@@ -152,7 +152,7 @@
     (let* ((len1 (string-length str1))
            (len2 (string-length str2))
            (len3 (+ len1 len2))
-           (str3 (make-string len3 #\0)))
+           (str3 (make-string len3 0)))
      (letrec
          ((copy1
            (lambda (i)
@@ -173,7 +173,7 @@
 (define substring
   (lambda (str start end)
     (let* ((len (#%- end start))
-           (result (make-string len #\0)))
+           (result (make-string len 0)))
       (letrec
           ((copy
             (lambda (i j)
@@ -354,7 +354,7 @@
 (define list->u8vector
   (lambda (x)
     (let* ((n (length x))
-	   (v (#%make-u8vector n)))
+	   (v (#%make-u8vector n 0)))
       (#%list->u8vector-loop v 0 x)
       v)))
 (define #%list->u8vector-loop
@@ -363,14 +363,8 @@
     (if (not (null? (cdr x)))
 	(#%list->u8vector-loop v (#%+ n 1) (cdr x)))))
 (define make-u8vector
-  (lambda (n x)
-    (#%make-u8vector-loop (#%make-u8vector n) (- n 1) x)))
-(define #%make-u8vector-loop
-  (lambda (v n x)
-    (if (>= n 0)
-        (begin (u8vector-set! v n x)
-               (#%make-u8vector-loop v (- n 1) x))
-        v)))
+  (lambda (n . x)
+    (#%make-u8vector n (if (pair? x) (car x) 0))))
 (define u8vector-copy!
   (lambda (source source-start target target-start n)
     (if (> n 0)

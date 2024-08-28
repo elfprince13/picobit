@@ -1,6 +1,7 @@
 #include <picobit.h>
 #include <bignum.h>
 #include <primitives.h>
+#include <debug.h>
 
 PRIMITIVE(number?, number_p, 1)
 {

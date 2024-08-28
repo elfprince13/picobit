@@ -13,3 +13,5 @@ vm/linker_script
 TAGS
 picobit-vm
 compiled/
+*.rkt~
+*.scm~

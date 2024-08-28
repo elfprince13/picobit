@@ -55,6 +55,11 @@ void show_type (obj o)
 
 void show_obj (obj o)
 {
+	// TODO: not thread safe, but this whole method needs reworking!
+	static int recursionDepth = -1;
+	++recursionDepth;
+
+
 	if (o == OBJ_FALSE) {
 		debug_printf ("#f");
 	} else if (o == OBJ_TRUE) {
@@ -72,6 +77,8 @@ void show_obj (obj o)
 			in_ram = 0;
 		}
 
+		uint16 loopCount = 0;
+
 		if ((in_ram && RAM_BIGNUM_P(o)) || (!in_ram && ROM_BIGNUM_P(o))) { // TODO fix for new bignums, especially for the sign, a -5 is displayed as 251
 			debug_printf ("%d", decode_int (o));
 		} else if ((in_ram && RAM_COMPOSITE_P(o)) || (!in_ram && ROM_COMPOSITE_P(o))) {
@@ -88,35 +95,47 @@ void show_obj (obj o)
 				}
 
 				debug_printf ("(");
-
 loop:
-				show_obj (car);
-
-				if (cdr == OBJ_NULL) {
-					debug_printf (")");
-				} else if ((IN_RAM(cdr) && RAM_PAIR_P(cdr))
-					   || (IN_ROM(cdr) && ROM_PAIR_P(cdr))) {
-					if (IN_RAM(cdr)) {
-						car = ram_get_car (cdr);
-						cdr = ram_get_cdr (cdr);
-					} else {
-						car = rom_get_car (cdr);
-						cdr = rom_get_cdr (cdr);
-					}
-
-					debug_printf (" ");
-					goto loop;
+				if ((loopCount > 32) || (recursionDepth > 32)) {
+					debug_printf("...debug recursion limit exceeded...)");
 				} else {
-					debug_printf (" . ");
-					show_obj (cdr);
-					debug_printf (")");
+					show_obj (car);
+					if (cdr == OBJ_NULL) {
+						debug_printf (")");
+					} else if ((IN_RAM(cdr) && RAM_PAIR_P(cdr))
+						|| (IN_ROM(cdr) && ROM_PAIR_P(cdr))) {
+						if (IN_RAM(cdr)) {
+							car = ram_get_car (cdr);
+							cdr = ram_get_cdr (cdr);
+						} else {
+							car = rom_get_car (cdr);
+							cdr = rom_get_cdr (cdr);
+						}
+
+						debug_printf (" ");
+						++loopCount;
+						goto loop;
+					} else {
+						debug_printf (" . ");
+						show_obj (cdr);
+						debug_printf (")");
+					}
 				}
 			} else if ((in_ram && RAM_SYMBOL_P(o)) || (!in_ram && ROM_SYMBOL_P(o))) {
 				debug_printf ("#<symbol %03X>", o & 0xff);
 			} else if ((in_ram && RAM_STRING_P(o)) || (!in_ram && ROM_STRING_P(o))) {
-				debug_printf ("#<string: %s>", (RAM_STRING_P(o) ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o)))));
+				debug_printf ("#<string: %s>", (in_ram ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o)))));
 			} else if ((in_ram && RAM_VECTOR_P(o)) || (!in_ram && ROM_VECTOR_P(o))) {
-				debug_printf ("#<vector %d>", o);
+				debug_printf ("#<vector 'u8(");
+				const size_t len = (in_ram? ram_get_car(o) : rom_get_car(o));
+				const uint8_t* data = (in_ram ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o))));
+				for (size_t i = 0; i < len; ++i) {
+					debug_printf("%hhu", data[i]);
+					if(i + 1 < len) {
+						debug_printf(" ");
+					}
+				}
+				debug_printf(")>");
 			} else {
 				debug_printf ("(");
 				cdr = ram_get_car (o);
@@ -138,6 +157,7 @@ loop:
 		}
 	}
 
+	--recursionDepth;
 	fflush (stdout);
 }
 
@@ -160,10 +180,21 @@ void show_state (rom_addr pc) {
 
 void show_obj_bytes (obj o) {
 	if(IN_RAM(o)) {
-		debug_printf("RAM:%04hx = %02hx,%02hx,%02hx,%02hx", 
-		o, ram_get_field0(o), ram_get_field1(o), ram_get_field2(o), ram_get_field3(o));
+		debug_printf("RAM:%04hx = ", o);
+		if (OBJ_TO_RAM_ADDR(o, 0) <= RAM_BYTES - 4) {
+			debug_printf("%02hx,%02hx,%02hx,%02hx",
+			             ram_get_field0(o), ram_get_field1(o), ram_get_field2(o), ram_get_field3(o));
+		} else {
+			debug_printf("OOB!");
+		}
+		
 	} else {
-		debug_printf("ROM:%04hx = %02hx,%02hx,%02hx,%02hx", 
-		o, rom_get_field0(o), rom_get_field1(o), rom_get_field2(o), rom_get_field3(o));
+		debug_printf("ROM:%04hx = ", o);
+		if (OBJ_TO_ROM_ADDR(o, 0) <= ROM_BYTES - 4) {
+			debug_printf("%02hx,%02hx,%02hx,%02hx",
+			             rom_get_field0(o), rom_get_field1(o), rom_get_field2(o), rom_get_field3(o));
+		} else {
+			debug_printf("OOB!");
+		}
 	}
 }

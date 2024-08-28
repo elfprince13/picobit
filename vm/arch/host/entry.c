@@ -95,7 +95,7 @@ int read_hex_file (char *filename)
 			a = (a1 << 8) + a2;
 
 			i = 0;
-			sum = len + a1 + a2 + t;
+			sum = (uint8)(len + a1 + a2 + t);
 
 			if (t == 0) {
 next0:
@@ -113,7 +113,7 @@ next0:
 
 					a = (a + 1) & 0xffff;
 					i++;
-					sum += b;
+					sum = (uint8)(sum + b);
 
 					goto next0;
 				}
@@ -142,7 +142,7 @@ next0:
 				break;
 			}
 
-			sum = -sum;
+			sum = (uint8)((~sum) + 1); // don't negate unsigned values??
 
 			if (sum != b) {
 				printf ("*** HEX file checksum error (expected 0x%02x)\n", sum);

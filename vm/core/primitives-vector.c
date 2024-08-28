@@ -2,6 +2,8 @@
 #include <bignum.h>
 #include <primitives.h>
 #include <gc.h>
+#include <string.h>
+#include <debug.h>
 
 PRIMITIVE(u8vector?, u8vector_p, 1)
 {
@@ -14,10 +16,14 @@ PRIMITIVE(u8vector?, u8vector_p, 1)
 	}
 }
 
-PRIMITIVE(#%make-u8vector, make_u8vector, 1)
+PRIMITIVE(#%make-u8vector, make_u8vector, 2)
 {
 	a1 = decode_int (arg1); // arg1 is length
 	// TODO adapt for the new bignums
+	a2 = decode_int (arg2); // arg2 is fill-number
+	if (a2 > 255) {
+		TYPE_ERROR("#%make-vector.0","arg2 not 0 < x <= 255");
+	}
 
 	arg1 = alloc_ram_cell_init (COMPOSITE_FIELD0 | (a1 >> 8),
 	                            a1 & 0xff,
@@ -25,12 +31,16 @@ PRIMITIVE(#%make-u8vector, make_u8vector, 1)
 	                            0); // will be filled in later
 	arg2 = alloc_vec_cell (a1, arg1);
 	ram_set_cdr(arg1, arg2);
+	arg2 = VEC_TO_RAM_BASE_ADDR(arg2);
+	// TODO: very janky, bypasses helper function, do not like:
+	memset(ram_mem + arg2, a2, a1);
 	arg2 = OBJ_FALSE;
 }
 
 PRIMITIVE(u8vector-ref, u8vector_ref, 2)
 {
 	a2 = decode_int (arg2);
+	arg2 = OBJ_FALSE;
 
 	// TODO adapt for the new bignums
 	if (IN_RAM(arg1)) {
@@ -43,7 +53,7 @@ PRIMITIVE(u8vector-ref, u8vector_ref, 2)
 		}
 		arg1 = ram_get_cdr (arg1);
 		arg1 = VEC_TO_RAM_BASE_ADDR(arg1);
-		arg1 = ram_get(arg1 + arg2);
+		arg1 = ram_get(arg1 + a2);
 	} else if (IN_ROM(arg1)) {
 		if (!ROM_VECTOR_P(arg1)) {
 			TYPE_ERROR("u8vector-ref.1", "vector");
@@ -54,16 +64,12 @@ PRIMITIVE(u8vector-ref, u8vector_ref, 2)
 		}
 		arg1 = rom_get_cdr (arg1);
 		arg1 = VEC_TO_ROM_BASE_ADDR(arg1);
-		arg1 = rom_get(arg1 + arg2);
+		arg1 = rom_get(arg1 + a2);
 	} else {
 		TYPE_ERROR("u8vector-ref.2", "vector");
 	}
 
 	arg1 = encode_int (arg1);
-
-	arg2 = OBJ_FALSE;
-	arg3 = OBJ_FALSE;
-	arg4 = OBJ_FALSE;
 }
 
 PRIMITIVE_UNSPEC(u8vector-set!, u8vector_set, 3)

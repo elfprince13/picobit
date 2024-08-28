@@ -1,7 +1,7 @@
 ifdef_any_of = $(filter-out undefined,$(foreach v,$(1),$(origin $(v))))
 
 ifneq ($(call ifdef_any_of,CONFIG_VM_DEBUG CONFIG_GC_DEBUG),)
-CFLAGS += -g3 -Og
+CFLAGS += -g3 -Og -fsanitize=undefined,bounds,address,nullability,pointer-overflow,integer
 endif
 
 

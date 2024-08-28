@@ -1,6 +1,7 @@
 #include <picobit.h>
 #include <primitives.h>
 #include <bignum.h>
+#include <debug.h>
 
 #include <stdio.h>
 #include <time.h>

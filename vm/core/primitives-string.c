@@ -43,6 +43,7 @@ PRIMITIVE(#%make-string, make_string, 2)
 PRIMITIVE(string-ref, string_ref, 2)
 {
 	a2 = decode_int (arg2);
+	arg2 = OBJ_FALSE;
 
 	// TODO adapt for the new bignums
 	if (IN_RAM(arg1)) {
@@ -55,7 +56,7 @@ PRIMITIVE(string-ref, string_ref, 2)
 		}
 		arg1 = ram_get_cdr (arg1);
 		arg1 = VEC_TO_RAM_BASE_ADDR(arg1);
-		arg1 = ram_get(arg1 + arg2);
+		arg1 = ram_get(arg1 + a2);
 	} else if (IN_ROM(arg1)) {
 		if (!ROM_STRING_P(arg1)) {
 			TYPE_ERROR("string-ref.1", "string");
@@ -66,14 +67,12 @@ PRIMITIVE(string-ref, string_ref, 2)
 		}
 		arg1 = rom_get_cdr (arg1);
 		arg1 = VEC_TO_ROM_BASE_ADDR(arg1);
-		arg1 = rom_get(arg1 + arg2);
+		arg1 = rom_get(arg1 + a2);
 	} else {
 		TYPE_ERROR("string-ref.2", "string");
 	}
 
 	arg1 = encode_int (arg1);
-
-	arg2 = OBJ_FALSE;
 }
 
 PRIMITIVE_UNSPEC(string-set!, string_set, 3)
@@ -208,7 +207,7 @@ PRIMITIVE(list->string, list2string, 1)
 		} else {
 			TYPE_ERROR("list->string.3", "pair");
 		}
-
+		a3 = decode_int(a3);
 		if(a3 > 255) {
 			TYPE_ERROR("list->string.4", "char");
 		}
