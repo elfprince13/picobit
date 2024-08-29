@@ -64,7 +64,10 @@
          (cond [(pair? o)
                 ;; encode both parts as well
                 (add-constants (list (car o) (cdr o)) new-constants)]
-               [(symbol? o) new-constants] ; symbols don't store information
+               [(symbol? o)
+                (let ([text (symbol->string o)])
+                  (vector-set! descr 3 text) ; intern the string representation
+                  (add-constant text new-constants #f))]
                [(string? o)
                 ;; TODO? encode each character as well
                 (vector-set! descr 3 (asm-make-label 'string-store))
@@ -270,7 +273,8 @@
                        (* #x10000 (+ #x8000 obj-car))
                        (+ #x0000 obj-cdr))))]
            [(symbol? obj)
-            (asm-32 #x80002000)]
+            (let ([text-rep (encode-constant d3 constants)])
+              (asm-32 (+ #x80002000 text-rep)))]
            [(string? obj)
             (asm-defer
              (4)

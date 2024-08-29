@@ -95,8 +95,12 @@ PRIMITIVE_UNSPEC(string-set!, string_set, 3)
 		}
 
 		arg1 = VEC_TO_RAM_BASE_ADDR(ram_get_cdr (arg1));
+		a1 = (arg1 >> 2) - 1; // the vector header
+		if (ram_get((a1 << 2) + FIELD0_OFFSET) & 0x80) {
+			TYPE_ERROR("string-set!.1", "mstring");
+		}
 	} else {
-		TYPE_ERROR("string-set!.1", "string");
+		TYPE_ERROR("string-set!.2", "string");
 	}
 
 	ram_set (arg1 + a2, a3);
