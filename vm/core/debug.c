@@ -25,7 +25,7 @@ void show_type (obj o)
 			debug_printf("ram symbol");
 		} else if (RAM_STRING_P(o)) {
 			debug_printf("ram string");
-		} else if (RAM_VECTOR_P(o)) {
+		} else if (RAM_U8VECTOR_P(o)) {
 			debug_printf("ram vector");
 		} else if (RAM_CONTINUATION_P(o)) {
 			debug_printf("ram continuation");
@@ -41,7 +41,7 @@ void show_type (obj o)
 			debug_printf("rom symbol");
 		} else if (ROM_STRING_P(o)) {
 			debug_printf("rom string");
-		} else if (ROM_VECTOR_P(o)) {
+		} else if (ROM_U8VECTOR_P(o)) {
 			debug_printf("rom vector");
 		} else if (ROM_CONTINUATION_P(o)) {
 			debug_printf("rom continuation");
@@ -50,7 +50,7 @@ void show_type (obj o)
 		// ROM closures don't exist
 	}
 
-	debug_printf("\n");
+	//debug_printf("\n");
 }
 
 void show_obj (obj o)
@@ -122,12 +122,12 @@ loop:
 					}
 				}
 			} else if ((in_ram && RAM_SYMBOL_P(o)) || (!in_ram && ROM_SYMBOL_P(o))) {
-				o = in_ram ? ram_get_cdr(o) : rom_get_cdr(o);
+				o = in_ram ? ram_get_car(o) : rom_get_car(o);
 				in_ram = IN_RAM(o);
 				debug_printf ("'%s", (in_ram ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o)))));
 			} else if ((in_ram && RAM_STRING_P(o)) || (!in_ram && ROM_STRING_P(o))) {
 				debug_printf ("#<string: %s>", (in_ram ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o)))));
-			} else if ((in_ram && RAM_VECTOR_P(o)) || (!in_ram && ROM_VECTOR_P(o))) {
+			} else if ((in_ram && RAM_U8VECTOR_P(o)) || (!in_ram && ROM_U8VECTOR_P(o))) {
 				debug_printf ("#<vector 'u8(");
 				const size_t len = (in_ram? ram_get_car(o) : rom_get_car(o));
 				const uint8_t* data = (in_ram ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o))));

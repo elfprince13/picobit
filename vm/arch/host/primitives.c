@@ -79,7 +79,7 @@ loop:
 				printf ("#<symbol>");
 			} else if ((in_ram && RAM_STRING_P(o)) || (!in_ram && ROM_STRING_P(o))) {
 				printf ("#<string>");
-			} else if ((in_ram && RAM_VECTOR_P(o)) || (!in_ram && ROM_VECTOR_P(o))) {
+			} else if ((in_ram && RAM_U8VECTOR_P(o)) || (!in_ram && ROM_U8VECTOR_P(o))) {
 				printf ("#<vector %d>", o);
 			} else {
 				printf ("(");
@@ -382,7 +382,7 @@ PRIMITIVE_UNSPEC(network-cleanup, network_cleanup, 0)
 PRIMITIVE(receive-packet-to-u8vector, receive_packet_to_u8vector, 1)
 {
 	// arg1 is the vector in which to put the received packet
-	if (!RAM_VECTOR_P(arg1)) {
+	if (!RAM_U8VECTOR_P(arg1)) {
 		TYPE_ERROR("receive-packet-to-u8vector", "vector");
 	}
 
@@ -425,7 +425,7 @@ PRIMITIVE(send-packet-from-u8vector, send_packet_from_u8vector, 2)
 	// arg1 is the vector which contains the packet to be sent
 	// arg2 is the length of the packet
 	// TODO only works with ram vectors for now
-	if (!RAM_VECTOR_P(arg1)) {
+	if (!RAM_U8VECTOR_P(arg1)) {
 		TYPE_ERROR("send-packet-from-vector!", "vector");
 	}
 

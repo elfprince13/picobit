@@ -28,6 +28,7 @@ void init_ram_heap ()
 	}
 
 	free_vec_pointer = _SYS_VEC_TO_RAM_OBJ(MIN_VEC_ENCODING);
+	IF_GC_TRACE(debug_printf("free_vec_pointer initialized to %hu\n", free_vec_pointer));
 
 	for (i = 0; i < glovars; i++) {
 		set_global (i, OBJ_FALSE);
@@ -59,7 +60,7 @@ push:
 		stack = visit;
 		visit = temp;
 
-		IF_GC_TRACE(debug_printf ("push   stack=%d  visit=%d (tag=%d)\n", stack, visit, ram_get_gc_tags (visit)>>5));
+		IF_GC_TRACE((debug_printf ("push   stack=%d  visit=%d (tag=%d)  (type=", stack, visit, ram_get_gc_tags (visit)>>5), show_type(visit), debug_printf(")\n")));
 
 		if ((HAS_1_OBJECT_FIELD (visit) && ram_get_gc_tag0 (visit))
 		    || (HAS_2_OBJECT_FIELDS (visit)
@@ -154,7 +155,7 @@ void sweep ()
 		    || (!RAM_COMPOSITE_P(visit)
 		        && !(ram_get_gc_tags (visit) & GC_TAG_0_LEFT))) { // 1 mark bit
 			/* unmarked? */
-			if (RAM_VECTOR_P(visit)) {
+			if (RAM_U8VECTOR_P(visit)) {
 				// when we sweep a vector, we also have to mark its contents as free
 				// we subtract 1 to get to the header of the block, before the data
 				obj o = _SYS_VEC_TO_RAM_OBJ(ram_get_cdr (visit) - 1);
@@ -327,12 +328,22 @@ void compact ()
 		}
 	}
 
-	// free space is now all at the end
-	free_vec_pointer = prev;
+	if (prev) {
+		IF_GC_TRACE(debug_printf("free_vec_pointer compacted from %hu to %hu\n", free_vec_pointer, prev));
+		// free space is now all at the end
+		free_vec_pointer = prev;
+	} else {
+		IF_GC_TRACE(debug_printf("no vectors allocated, free_vec_pointer remains %hu\n", free_vec_pointer));
+	}
+	
+	
 }
 
 obj alloc_vec_cell (uint16 n, obj from)
 {
+	if (n > 0x1fff) {
+		TYPE_ERROR("alloc_vec_cell","13-bit fixnum");
+	}
 	uint8 gc_done = 0;
 
 #ifdef CONFIG_GC_DEBUG
@@ -360,6 +371,8 @@ obj alloc_vec_cell (uint16 n, obj from)
 
 	obj o = free_vec_pointer;
 
+
+	IF_GC_TRACE(debug_printf("Bumping free_vec_pointer from %hu to %hu\n", free_vec_pointer, free_vec_pointer + n));
 	// advance the free pointer
 	free_vec_pointer += n;
 
@@ -371,7 +384,7 @@ obj alloc_vec_cell (uint16 n, obj from)
 	ram_set_gc_tag0 (o, GC_TAG_0_LEFT); // mark block as used
 
 	// return pointer to start of data, skipping the header
-	return _SYS_RAM_TO_VEC_OBJ(o + 1);
+	return (obj)(_SYS_RAM_TO_VEC_OBJ(o + 1));
 }
 
 #ifdef CONFIG_GC_STATISTICS_PRIMITIVE

@@ -274,7 +274,7 @@
                        (+ #x0000 obj-cdr))))]
            [(symbol? obj)
             (let ([text-rep (encode-constant d3 constants)])
-              (asm-32 (+ #x80002000 text-rep)))]
+              (asm-32 (+ #x80002000 (* #x10000 text-rep))))]
            [(string? obj)
             (asm-defer
              (4)

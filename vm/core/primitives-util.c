@@ -28,9 +28,9 @@ PRIMITIVE(symbol?, symbol_p, 1)
 PRIMITIVE(symbol->string, symbol2string, 1)
 {
 	if (IN_RAM(arg1) && RAM_SYMBOL_P(arg1)) {
-		arg1 = ram_get_cdr(arg1);
+		arg1 = ram_get_car(arg1);
 	} else if (IN_ROM(arg1) && ROM_SYMBOL_P(arg1)) {
-		arg1 = rom_get_cdr(arg1);
+		arg1 = rom_get_car(arg1);
 	} else {
 		type_error("symbol->string", "symbol");
 	}
@@ -66,8 +66,8 @@ PRIMITIVE(string->symbol, string2symbol, 1)
 	ram_set(a2, ram_get(a2) | 0x80); // mark as immutable
 
 	arg1 = alloc_ram_cell_init (COMPOSITE_FIELD0, 0, SYMBOL_FIELD2, 0);
-	ram_set_cdr(arg1, arg2);
-	arg1 = arg2;
+	ram_set_car(arg1, arg2);
+	//arg1 = arg2;
 	arg2 = OBJ_FALSE;
 }
 

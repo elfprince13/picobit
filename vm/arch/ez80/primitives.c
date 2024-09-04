@@ -75,7 +75,7 @@ loop:
 				printf ("#<symbol>");
 			} else if ((in_ram && RAM_STRING_P(o)) || (!in_ram && ROM_STRING_P(o))) {
 				printf ("#<string>");
-			} else if ((in_ram && RAM_VECTOR_P(o)) || (!in_ram && ROM_VECTOR_P(o))) {
+			} else if ((in_ram && RAM_U8VECTOR_P(o)) || (!in_ram && ROM_U8VECTOR_P(o))) {
 				printf ("#<vector %d>", o);
 			} else {
 				printf ("(");
