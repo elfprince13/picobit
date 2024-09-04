@@ -155,7 +155,7 @@ void sweep ()
 		    || (!RAM_COMPOSITE_P(visit)
 		        && !(ram_get_gc_tags (visit) & GC_TAG_0_LEFT))) { // 1 mark bit
 			/* unmarked? */
-			if (RAM_U8VECTOR_P(visit)) {
+			if (RAM_U8VECTOR_P(visit) || RAM_STRING_P(visit)) {
 				// when we sweep a vector, we also have to mark its contents as free
 				// we subtract 1 to get to the header of the block, before the data
 				obj o = _SYS_VEC_TO_RAM_OBJ(ram_get_cdr (visit) - 1);
