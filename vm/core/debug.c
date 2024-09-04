@@ -3,6 +3,7 @@
 #include <debug.h>
 #include <stdio.h>
 #include <dispatch.h>
+#include <escapes.h>
 
 void show_type (obj o)
 {
@@ -126,18 +127,41 @@ loop:
 				in_ram = IN_RAM(o);
 				debug_printf ("'%s", (in_ram ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o)))));
 			} else if ((in_ram && RAM_STRING_P(o)) || (!in_ram && ROM_STRING_P(o))) {
-				debug_printf ("#<string: %s>", (in_ram ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o)))));
-			} else if ((in_ram && RAM_U8VECTOR_P(o)) || (!in_ram && ROM_U8VECTOR_P(o))) {
-				debug_printf ("#<vector 'u8(");
-				const size_t len = (in_ram? ram_get_car(o) : rom_get_car(o));
-				const uint8_t* data = (in_ram ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o))));
-				for (size_t i = 0; i < len; ++i) {
-					debug_printf("%hhu", data[i]);
-					if(i + 1 < len) {
-						debug_printf(" ");
+				const uint8 * charIt = (in_ram 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o))));
+				debug_printf("\"");
+				for (const uint8 * const end = charIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
+				     charIt != end;
+					 ++charIt)
+				{
+					uint8 c = *charIt;
+					uint8* escaped;
+					if (0 == schemeEscapeChar(c, &escaped)) {
+						debug_printf("%s", escaped);
+					} else {
+						debug_printf("%c", c);
 					}
 				}
-				debug_printf(")>");
+				debug_printf("\"");
+			} else if ((in_ram && RAM_U8VECTOR_P(o)) || (!in_ram && ROM_U8VECTOR_P(o))) {
+				
+				const uint8 * numIt = (in_ram 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o))));
+				debug_printf("'#u8(");
+				const uint8 * const end = numIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
+				if (numIt != end) {
+				vec_show_loop:
+					debug_printf("%hhu", *numIt);
+					++numIt;
+					if (numIt != end) {
+						putchar(' ');
+						/* annoyingly tricky to write this loop with a standard construct without repeating tests */
+						goto vec_show_loop;
+					}
+				}
+				debug_printf(")");
 			} else {
 				debug_printf ("(");
 				cdr = ram_get_car (o);

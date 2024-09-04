@@ -41,7 +41,7 @@ PRIMITIVE(symbol->string, symbol2string, 1)
 // the intern table
 PRIMITIVE(string->symbol, string2symbol, 1)
 {
-	uint8 * srcPointer;
+	const uint8 * srcPointer;
 	if (IN_RAM(arg1) && RAM_STRING_P(arg1)) {
 		a1 = ram_get_car(arg1);
 		srcPointer = ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(arg1));
