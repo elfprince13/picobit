@@ -179,19 +179,19 @@ uint8 ROM_STRING_P(uint16 o)
 #endif
 
 // u8vector third byte : 011xxxxx
-#define VECTOR_FIELD2 0x60
+#define U8VECTOR_FIELD2 0x60
 #ifdef LESS_MACROS
-uint8 RAM_VECTOR_P(uint16 o)
+uint8 RAM_U8VECTOR_P(uint16 o)
 {
-	return (RAM_COMPOSITE_P (o) && ((ram_get_field2 (o) & 0xe0) == VECTOR_FIELD2));
+	return (RAM_COMPOSITE_P (o) && ((ram_get_field2 (o) & 0xe0) == U8VECTOR_FIELD2));
 }
-uint8 ROM_VECTOR_P(uint16 o)
+uint8 ROM_U8VECTOR_P(uint16 o)
 {
-	return (ROM_COMPOSITE_P (o) && ((rom_get_field2 (o) & 0xe0) == VECTOR_FIELD2));
+	return (ROM_COMPOSITE_P (o) && ((rom_get_field2 (o) & 0xe0) == U8VECTOR_FIELD2));
 }
 #else
-#define RAM_VECTOR_P(o) (RAM_COMPOSITE_P (o) && ((ram_get_field2 (o) & 0xe0) == VECTOR_FIELD2))
-#define ROM_VECTOR_P(o) (ROM_COMPOSITE_P (o) && ((rom_get_field2 (o) & 0xe0) == VECTOR_FIELD2))
+#define RAM_U8VECTOR_P(o) (RAM_COMPOSITE_P (o) && ((ram_get_field2 (o) & 0xe0) == U8VECTOR_FIELD2))
+#define ROM_U8VECTOR_P(o) (ROM_COMPOSITE_P (o) && ((rom_get_field2 (o) & 0xe0) == U8VECTOR_FIELD2))
 #endif
 
 // continuation third byte : 100xxxxx

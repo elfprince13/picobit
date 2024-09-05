@@ -1,5 +1,6 @@
 #include <picobit.h>
 #include <primitives.h>
+#include <debug.h>
 
 PRIMITIVE(pair?, pair_p, 1)
 {

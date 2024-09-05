@@ -38,6 +38,8 @@ uint8 HAS_1_OBJECT_FIELD(uint16 visit)
 #endif
 #endif
 // all composites except pairs and continuations have 1 object field
+// however only symbols have 1 object field in the car position
+// strings, u8vectors, and vectors have a vector reference in the cdr position
 
 #ifdef CONFIG_GC_DEBUG
 extern int max_live;

@@ -64,20 +64,21 @@
          (cond [(pair? o)
                 ;; encode both parts as well
                 (add-constants (list (car o) (cdr o)) new-constants)]
-               [(symbol? o) new-constants] ; symbols don't store information
+               [(symbol? o)
+                (let ([text (symbol->string o)])
+                  (vector-set! descr 3 text) ; intern the string representation
+                  (add-constant text new-constants #f))]
                [(string? o)
-                ;; encode each character as well
-                (let ([chars (map char->integer (string->list o))])
-                  (vector-set! descr 3 chars)
-                  (add-constant chars new-constants #f))]
+                ;; TODO? encode each character as well
+                (vector-set! descr 3 (asm-make-label 'string-store))
+                new-constants]
                [(vector? o) ; ordinary vectors are stored as lists
                 (let ([elems (vector->list o)])
                   (vector-set! descr 3 elems)
                   (add-constant elems new-constants #f))]
-               [(u8vector? o) ; ROM u8vectors are lists as well, so O(n) access
-                (let ([elems (u8vector->list o)])
-                  (vector-set! descr 3 elems)
-                  (add-constant elems new-constants #f))]
+               [(u8vector? o)
+                (vector-set! descr 3 (asm-make-label 'u8vector-store))
+                new-constants]
                [(exact-integer? o)
                 (let ([hi (arithmetic-shift o -16)])
                   (vector-set! descr 3 hi)
@@ -245,6 +246,16 @@
 
 ;;-----------------------------------------------------------------------------
 
+;; like asm-at-assembly but the first strategy always succeeds.
+;; code doesn't know it's own position
+(define-syntax (asm-defer stx)
+  (syntax-case stx ()
+    [(asm-defer (size) exprs ...)
+     #'(asm-at-assembly
+         (lambda (x) size)
+         (lambda (x) exprs ...))]))
+
+;;-----------------------------------------------------------------------------
 (define (assemble-constant x constants)
   (match x
     [`(,obj . ,(and descr `#(,_ ,label ,_ ,d3)))
@@ -262,12 +273,23 @@
                        (* #x10000 (+ #x8000 obj-car))
                        (+ #x0000 obj-cdr))))]
            [(symbol? obj)
-            (asm-32 #x80002000)]
+            (let ([text-rep (encode-constant d3 constants)])
+              (asm-32 (+ #x80002000 (* #x10000 text-rep))))]
            [(string? obj)
-            (let ([obj-enc (encode-constant d3 constants)])
-              (asm-32
-               (+ (* #x10000 (+ #x8000 obj-enc))
-                #x4000)))]
+            (asm-defer
+             (4)
+             (let ([data-store (asm-label-pos d3)]
+                   [l (string-length obj)])
+               ;; length is stored raw, not encoded as an object
+               (asm-32
+                (+ (* #x10000 (+ #x8000 l))
+                   (+ #x4000
+                      ; sort of invert C macro OBJ_TO_ROM_ADDR
+                      ; (skip MIN_ROM_ENCODING and field offset)
+                      (quotient 
+                       (- data-store
+                          (+ code-start 4)) ; subtract header
+                       4))))))]
            [(vector? obj) ; ordinary vectors are stored as lists
             (let ([obj-car (encode-constant (car d3) constants)]
                   [obj-cdr (encode-constant (cdr d3) constants)])
@@ -275,16 +297,64 @@
                        (* #x10000 (+ #x8000 obj-car))
                        (+ #x0000 obj-cdr))))]
            [(u8vector? obj)
-            (let ([obj-enc (encode-constant d3 constants)]
-                  [l       (length d3)])
-              ;; length is stored raw, not encoded as an object
-              ;; however, the bytes of content are encoded as
-              ;; fixnums
-              (asm-32 (+
-                       (* #x10000 (+ #x8000 l))
-                       (+ #x6000 obj-enc))))]
+            (asm-defer
+             (4)
+             (let ([data-store (asm-label-pos d3)]
+                   [l       (u8vector-length obj)])
+               ;; length is stored raw, not encoded as an object
+               (asm-32
+                (+
+                 (* #x10000 (+ #x8000 l))
+                 (+ #x6000
+                    ; sort of invert C macro OBJ_TO_ROM_ADDR
+                    ; (skip MIN_ROM_ENCODING and field offset)
+                    (quotient 
+                     (- data-store
+                        (+ code-start 4)) ; subtract header
+                     4))))))]
            [else
             (compiler-error "unknown object type" obj)])]))
+
+(define (assemble-byte-buf for-const)
+  (match for-const
+    [`(,obj . ,(and descr `#(,_ ,label ,_ ,d3)))
+     (cond
+       [(string? obj)
+        (asm-align 4 0)
+        ;; header: leading 2 bits unused by RAM vectors in original
+        ;; implementation but we want to distinguish mutable / immutable
+        ;; data so we will set leading bit to 1 for immutable
+        (asm-defer (4)
+         (asm-32
+          (+ (*
+              #x10000
+              (+ #x8000
+                 (+ 1 ; this header block
+                    (quotient
+                     (+ 4 (string-length obj)) ; +1 for nul-termination (to be C-friendly) and +3 for "ceil" in flooring division by 4
+                     4))))
+             (asm-label-pos label)))) ; pointer to normal object header
+        (asm-label d3)
+        (asm-string obj)] ; doesn't handle multi-byte encodings nicely
+       [(u8vector? obj)
+        (asm-align 4 0)
+        ;; header: leading 2 bits unused by RAM vectors in original
+        ;; implementation but we want to distinguish mutable / immutable
+        ;; data so we will set leading bit to 1 for immutable
+        (asm-defer (4)
+         (asm-32
+          (+ (*
+              #x10000
+              (+ #x8000
+                 (+ 1 ; this header block
+                    (quotient
+                     (+ 3 (u8vector-length obj)) ;+3 for "ceil" in flooring division by 4
+                     4))))
+             (asm-label-pos label)))) ; pointer to normal object header
+        (asm-label d3) ; normal object header points to contents.
+        (asm-bytes obj)] ; doesn't handle multi-byte encodings nicely
+       [else
+        (void)])]))
 
 
 (define (assemble code port big-endian?)
@@ -371,6 +441,9 @@
          (prim (dict-ref primitive-encodings 'pop))]
         [_
          (compiler-error "unknown instruction" instr)]))
+    ;; text + byte data
+    (for ([c (in-list constants)])
+      (assemble-byte-buf c))
 
     (asm-assemble)
 

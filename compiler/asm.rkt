@@ -1,6 +1,7 @@
 #lang r5rs
 
-(#%require (only racket error current-error-port))
+(#%require (only racket error current-error-port when))
+(#%require (only ffi/vector u8vector-length u8vector-ref))
 (#%provide (all-defined))
 
 ;;; This module implements the generic assembler.
@@ -80,6 +81,15 @@
           (asm-8 (char->integer (string-ref str i)))
           (loop (+ i 1)))
         (asm-8 0)))))
+
+;; (asm-bytes str) adds a sequence of bytes to the code stream.
+
+(define (asm-bytes bytevec)
+  (let ((len (u8vector-length bytevec)))
+    (let loop ((i 0))
+      (when (< i len)
+        (asm-8 (u8vector-ref bytevec i))
+        (loop (+ i 1))))))
 
 ;; (asm-make-label id) creates a new label object.  A label can
 ;; be queried with "asm-label-pos" to obtain the label's position

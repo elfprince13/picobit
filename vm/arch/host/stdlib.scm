@@ -33,7 +33,13 @@
 (define display
   (lambda (x)
     (if (string? x)
-        (for-each putchar (string->list x))
+      (let ([upper-bound (string-length x)])
+        (let loop ([i 0])
+          (if (< i upper-bound)
+            (begin 
+              (putchar (string-ref x i))
+              (loop (+ 1 i)))
+            #f)))
         (write x))))
 
 (define (newline) (#%putchar #\newline 3))
@@ -53,7 +59,9 @@
                   (write (car x))
                   (#%write-list (cdr x))))
 	  ((symbol? x)
-	   (display "#<symbol>"))
+           (begin
+	     (display "'")
+             (display (symbol->string x))))
 	  ((boolean? x)
 	   (display (if x "#t" "#f")))
 	  (else

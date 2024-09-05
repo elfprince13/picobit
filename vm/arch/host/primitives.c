@@ -1,6 +1,8 @@
 #include <picobit.h>
 #include <primitives.h>
 #include <bignum.h>
+#include <debug.h>
+#include <escapes.h>
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -77,9 +79,42 @@ loop:
 			} else if ((in_ram && RAM_SYMBOL_P(o)) || (!in_ram && ROM_SYMBOL_P(o))) {
 				printf ("#<symbol>");
 			} else if ((in_ram && RAM_STRING_P(o)) || (!in_ram && ROM_STRING_P(o))) {
-				printf ("#<string>");
-			} else if ((in_ram && RAM_VECTOR_P(o)) || (!in_ram && ROM_VECTOR_P(o))) {
-				printf ("#<vector %d>", o);
+				const uint8 * charIt = (in_ram 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o))));
+				putchar('"');
+				for (const uint8 * const end = charIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
+				     charIt != end;
+					 ++charIt)
+				{
+					uint8 c = *charIt;
+					uint8* escaped;
+					if (0 == schemeEscapeChar(c, &escaped)) {
+						while((c = *(escaped++))) {
+							putchar(c);
+						}
+					} else {
+						putchar(c);
+					}
+				}
+				putchar('"');
+			} else if ((in_ram && RAM_U8VECTOR_P(o)) || (!in_ram && ROM_U8VECTOR_P(o))) {
+				const uint8 * numIt = (in_ram 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o))));
+				printf("'#u8(");
+				const uint8 * const end = numIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
+				if (numIt != end) {
+				vec_show_loop:
+					printf("%hhu", *numIt);
+					++numIt;
+					if (numIt != end) {
+						putchar(' ');
+						/* annoyingly tricky to write this loop with a standard construct without repeating tests */
+						goto vec_show_loop;
+					}
+				}
+				printf(")");
 			} else {
 				printf ("(");
 				cdr = ram_get_car (o);
@@ -381,7 +416,7 @@ PRIMITIVE_UNSPEC(network-cleanup, network_cleanup, 0)
 PRIMITIVE(receive-packet-to-u8vector, receive_packet_to_u8vector, 1)
 {
 	// arg1 is the vector in which to put the received packet
-	if (!RAM_VECTOR_P(arg1)) {
+	if (!RAM_U8VECTOR_P(arg1)) {
 		TYPE_ERROR("receive-packet-to-u8vector", "vector");
 	}
 
@@ -401,7 +436,7 @@ PRIMITIVE(receive-packet-to-u8vector, receive_packet_to_u8vector, 1)
 	}
 
 	if (header.len > 0) { // we have received a packet, write it in the vector
-		arg2 = VEC_TO_RAM_OBJ(ram_get_cdr (arg1));
+		arg2 = _SYS_VEC_TO_RAM_OBJ(ram_get_cdr (arg1));
 		arg1 = header.len; // we return the length of the received packet
 		a1 = 0;
 
@@ -424,7 +459,7 @@ PRIMITIVE(send-packet-from-u8vector, send_packet_from_u8vector, 2)
 	// arg1 is the vector which contains the packet to be sent
 	// arg2 is the length of the packet
 	// TODO only works with ram vectors for now
-	if (!RAM_VECTOR_P(arg1)) {
+	if (!RAM_U8VECTOR_P(arg1)) {
 		TYPE_ERROR("send-packet-from-vector!", "vector");
 	}
 
@@ -438,7 +473,7 @@ PRIMITIVE(send-packet-from-u8vector, send_packet_from_u8vector, 2)
 		ERROR("send-packet-from-u8vector", "packet cannot be longer than vector");
 	}
 
-	arg1 = VEC_TO_RAM_OBJ(ram_get_cdr (arg1));
+	arg1 = _SYS_VEC_TO_RAM_OBJ(ram_get_cdr (arg1));
 
 	// copy the packet to the output buffer
 	while (a1 < a2) {

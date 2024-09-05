@@ -79,7 +79,7 @@ uint8 handle_arity_and_rest_param (uint8 na)
 			ERROR("handle_arity_and_rest_param.0", "wrong number of arguments");
 		}
 	} else {
-		np = ~np;
+		np = (uint8)(~np);
 
 		if (na < np) {
 			ERROR("handle_arity_and_rest_param.1", "wrong number of arguments");

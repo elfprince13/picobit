@@ -1,6 +1,8 @@
 #include <picobit.h>
 #include <primitives.h>
 #include <bignum.h>
+#include <debug.h>
+#include <escapes.h>
 
 #include <stdio.h>
 #include <time.h>
@@ -73,9 +75,42 @@ loop:
 			} else if ((in_ram && RAM_SYMBOL_P(o)) || (!in_ram && ROM_SYMBOL_P(o))) {
 				printf ("#<symbol>");
 			} else if ((in_ram && RAM_STRING_P(o)) || (!in_ram && ROM_STRING_P(o))) {
-				printf ("#<string>");
-			} else if ((in_ram && RAM_VECTOR_P(o)) || (!in_ram && ROM_VECTOR_P(o))) {
-				printf ("#<vector %d>", o);
+				const uint8 * charIt = (in_ram 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o))));
+				putchar('"');
+				for (const uint8 * const end = charIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
+				     charIt != end;
+					 ++charIt)
+				{
+					uint8 c = *charIt;
+					uint8* escaped;
+					if (0 == schemeEscapeChar(c, &escaped)) {
+						while((c = *(escaped++))) {
+							putchar(c);
+						}
+					} else {
+						putchar(c);
+					}
+				}
+				putchar('"');
+			} else if ((in_ram && RAM_U8VECTOR_P(o)) || (!in_ram && ROM_U8VECTOR_P(o))) {
+				const uint8 * numIt = (in_ram 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o))));
+				printf("'#u8(");
+				const uint8 * const end = numIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
+				if (numIt != end) {
+				vec_show_loop:
+					printf("%hhu", *numIt);
+					++numIt;
+					if (numIt != end) {
+						putchar(' ');
+						/* annoyingly tricky to write this loop with a standard construct without repeating tests */
+						goto vec_show_loop;
+					}
+				}
+				printf(")");
 			} else {
 				printf ("(");
 				cdr = ram_get_car (o);
