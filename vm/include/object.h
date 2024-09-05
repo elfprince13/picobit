@@ -210,6 +210,22 @@ uint8 ROM_CONTINUATION_P(uint16 o)
 #define ROM_CONTINUATION_P(o) (ROM_COMPOSITE_P (o) && ((rom_get_field2 (o) & 0xe0) == CONTINUATION_FIELD2))
 #endif
 
+// obj-vector third byte : 101xxxxx
+#define VECTOR_FIELD2 0xA0
+#ifdef LESS_MACROS
+uint8 RAM_VECTOR_P(uint16 o)
+{
+	return (RAM_COMPOSITE_P (o) && ((ram_get_field2 (o) & 0xe0) == VECTOR_FIELD2));
+}
+uint8 ROM_VECTOR_P(uint16 o)
+{
+	return (ROM_COMPOSITE_P (o) && ((rom_get_field2 (o) & 0xe0) == VECTOR_FIELD2));
+}
+#else
+#define RAM_VECTOR_P(o) (RAM_COMPOSITE_P (o) && ((ram_get_field2 (o) & 0xe0) == VECTOR_FIELD2))
+#define ROM_VECTOR_P(o) (ROM_COMPOSITE_P (o) && ((rom_get_field2 (o) & 0xe0) == VECTOR_FIELD2))
+#endif
+
 // closure first byte : 01Gxxxxx
 // closures are only found in RAM
 #define CLOSURE_FIELD0 0x40

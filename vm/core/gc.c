@@ -59,10 +59,10 @@ void mark (obj temp)
 push:
 		stack = visit;
 		visit = temp;
-
+post_push:
 		IF_GC_TRACE((debug_printf ("push   stack=%d  visit=%d (tag=%d)  (type=", stack, visit, ram_get_gc_tags (visit)>>5), show_type(visit), debug_printf(")\n")));
 
-		if ((HAS_1_OBJECT_FIELD (visit) && ram_get_gc_tag0 (visit))
+		if (((HAS_1_OBJECT_FIELD (visit) || HAS_N_OBJECT_FIELDS(visit)) && ram_get_gc_tag0 (visit))
 		    || (HAS_2_OBJECT_FIELDS (visit)
 		        && (ram_get_gc_tags (visit) != GC_TAG_UNMARKED))) {
 			IF_GC_TRACE(debug_printf ("case 1\n"));
@@ -91,16 +91,43 @@ visit_field1:
 				temp = ram_get_car (visit);
 
 				if (IN_RAM(temp)) {
-					IF_GC_TRACE(debug_printf ("case 6\n"));
+					IF_GC_TRACE(debug_printf ("case 6: %04hx\n",temp));
 					ram_set_gc_tag0 (visit, GC_TAG_0_LEFT);
 					ram_set_car (visit, stack);
 
 					goto push;
 				}
 
-				IF_GC_TRACE(debug_printf ("case 7\n"));
+				IF_GC_TRACE(debug_printf ("case 7: %04hx\n",temp));
 			} else {
 				IF_GC_TRACE(debug_printf ("case 8\n"));
+				if (HAS_N_OBJECT_FIELDS(visit)) {
+					temp = _SYS_VEC_TO_RAM_OBJ(ram_get_cdr(visit)) - 1;
+#ifndef NDEBUG
+					if (IN_RAM(temp)) { // this is probably unnecessary - remove when not debugging 
+#endif //NDEBUG
+						const uint16 blockCount = ram_get_car(temp);
+						if (blockCount > 1) { // don't visit the header itself, which is included in block count!
+							IF_GC_TRACE(debug_printf("case 9: %04hx + %04hx\n", temp, blockCount));
+							// ram_set_car(temp, blockCount - 1);
+							temp = temp + blockCount;
+							
+							ram_set_gc_tag0(visit, GC_TAG_0_LEFT);
+							ram_set_cdr(visit, stack);
+							goto push;
+						
+						} else {
+							IF_GC_TRACE(debug_printf("case 10"));
+							// // reset block count
+							// ram_set_car(temp, ((ram_get_car(visit)+3) >> 2) + 1);
+							// fall through to visit for real this time and pop...
+						}
+#ifndef NDEBUG
+					} else {
+						ERROR("gc.mark", "RAM vector pointing at ROM?");
+					}
+#endif // NDEBUG
+				}
 			}
 
 			ram_set_gc_tag0 (visit, GC_TAG_0_LEFT);
@@ -111,7 +138,7 @@ pop:
 
 		if (stack != OBJ_FALSE) {
 			if (HAS_2_OBJECT_FIELDS(stack) && ram_get_gc_tag1 (stack)) {
-				IF_GC_TRACE(debug_printf ("case 9\n"));
+				IF_GC_TRACE(debug_printf ("case 11\n"));
 
 				temp = ram_get_cdr (stack);  /* pop through cdr */
 				ram_set_cdr (stack, visit);
@@ -122,9 +149,24 @@ pop:
 				// we unset the "1-left" bit
 
 				goto visit_field1;
+			} else if (HAS_N_OBJECT_FIELDS(stack) && ram_get_gc_tag0(stack)) {
+				if (RAM_PAIR_P(visit)) {
+					IF_GC_TRACE(debug_printf("case 12\n"));
+					visit = visit - 1;
+					goto post_push; // optimization skip a bit of stack thrashing
+				} else {
+					IF_GC_TRACE(debug_printf("case 13\n"));
+					temp = ram_get_cdr (stack);
+					ram_set_cdr (stack, visit);
+					visit = stack;
+					stack = temp;
+
+					goto pop;
+				}
+				
 			}
 
-			IF_GC_TRACE(debug_printf ("case 11\n"));
+			IF_GC_TRACE(debug_printf ("case 14\n"));
 
 			temp = ram_get_car (stack);  /* pop through car */
 			ram_set_car (stack, visit);
