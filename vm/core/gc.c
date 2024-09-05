@@ -109,7 +109,6 @@ visit_field1:
 						const uint16 blockCount = ram_get_car(temp);
 						if (blockCount > 1) { // don't visit the header itself, which is included in block count!
 							IF_GC_TRACE(debug_printf("case 9: %04hx + %04hx\n", temp, blockCount));
-							// ram_set_car(temp, blockCount - 1);
 							temp = temp + blockCount;
 							
 							ram_set_gc_tag0(visit, GC_TAG_0_LEFT);
@@ -118,9 +117,7 @@ visit_field1:
 						
 						} else {
 							IF_GC_TRACE(debug_printf("case 10"));
-							// // reset block count
-							// ram_set_car(temp, ((ram_get_car(visit)+3) >> 2) + 1);
-							// fall through to visit for real this time and pop...
+							// fall through to mark visited for real this time and pop...
 						}
 #ifndef NDEBUG
 					} else {
