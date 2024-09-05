@@ -105,8 +105,25 @@ loop:
 				printf("'#u8(");
 				const uint8 * const end = numIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
 				if (numIt != end) {
-				vec_show_loop:
+				u8vec_show_loop:
 					printf("%hhu", *numIt);
+					++numIt;
+					if (numIt != end) {
+						putchar(' ');
+						/* annoyingly tricky to write this loop with a standard construct without repeating tests */
+						goto u8vec_show_loop;
+					}
+				}
+				printf(")");
+			} else if ((in_ram && RAM_VECTOR_P(o)) || (!in_ram && ROM_VECTOR_P(o))) {
+				const uint16 * numIt = (const uint16*)(in_ram 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o))));
+				printf("'#(");
+				const uint16 * const end = numIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
+				if (numIt != end) {
+				vec_show_loop:
+					show(*numIt);
 					++numIt;
 					if (numIt != end) {
 						putchar(' ');

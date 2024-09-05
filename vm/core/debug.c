@@ -27,11 +27,15 @@ void show_type (obj o)
 		} else if (RAM_STRING_P(o)) {
 			debug_printf("ram string");
 		} else if (RAM_U8VECTOR_P(o)) {
-			debug_printf("ram vector");
+			debug_printf("ram u8vector");
 		} else if (RAM_CONTINUATION_P(o)) {
 			debug_printf("ram continuation");
 		} else if (RAM_CLOSURE_P(o)) {
 			debug_printf("ram closure");
+		} else if (RAM_VECTOR_P(o)) {
+			debug_printf("ram vector");
+		} else {
+			debug_printf("ram unknown");
 		}
 	} else { // ROM
 		if (ROM_BIGNUM_P(o)) {
@@ -43,9 +47,13 @@ void show_type (obj o)
 		} else if (ROM_STRING_P(o)) {
 			debug_printf("rom string");
 		} else if (ROM_U8VECTOR_P(o)) {
-			debug_printf("rom vector");
+			debug_printf("rom u8vector");
 		} else if (ROM_CONTINUATION_P(o)) {
 			debug_printf("rom continuation");
+		} else if (ROM_VECTOR_P(o)) {
+			debug_printf("rom vector");
+		} else {
+			debug_printf("rom unknown");
 		}
 
 		// ROM closures don't exist
@@ -152,8 +160,25 @@ loop:
 				debug_printf("'#u8(");
 				const uint8 * const end = numIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
 				if (numIt != end) {
-				vec_show_loop:
+				u8vec_show_loop:
 					debug_printf("%hhu", *numIt);
+					++numIt;
+					if (numIt != end) {
+						putchar(' ');
+						/* annoyingly tricky to write this loop with a standard construct without repeating tests */
+						goto u8vec_show_loop;
+					}
+				}
+				debug_printf(")");
+			} else if ((in_ram && RAM_VECTOR_P(o)) || (!in_ram && ROM_VECTOR_P(o))) {
+				const uint16 * numIt = (const uint16*)(in_ram 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o))));
+				debug_printf("'#(");
+				const uint16 * const end = numIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
+				if (numIt != end) {
+				vec_show_loop:
+					show_obj(*numIt);
 					++numIt;
 					if (numIt != end) {
 						putchar(' ');
