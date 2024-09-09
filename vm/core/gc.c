@@ -378,6 +378,7 @@ void compact ()
 
 	while (cur < free_vec_pointer) {
 		cur_size  = ram_get_car(cur);
+		IF_GC_TRACE(debug_printf("compact: header block %hu (len %hu) has mark %d\n", cur, cur_size, ram_get_gc_tag0(cur)));
 
 		if (prev && !ram_get_gc_tag0 (prev)) { // previous block is free
 			if (!ram_get_gc_tag0 (cur)) { // current is free too, merge free spaces
@@ -411,6 +412,7 @@ void compact ()
 	}
 
 	if (prev) {
+		prev = cur;
 		IF_GC_TRACE(debug_printf("free_vec_pointer compacted from %hu to %hu\n", free_vec_pointer, prev));
 		// free space is now all at the end
 		free_vec_pointer = prev;

@@ -150,12 +150,15 @@ PRIMITIVE(#%make-vector, make_vector, 2)
 	a1 = decode_int (arg1); // arg1 is length
 	// arg2 is fill-object
 
+	//IF_TRACE(debug_printf("\t#%%make_vector called, alloc_vec_cell follows\n"));
 	const obj header = alloc_vec_cell (a1 << 1 /* each object field needs 2 bytes */);
 	a3 = _SYS_RAM_TO_VEC_OBJ(header + 1);
+	//IF_TRACE(debug_printf("\t#%%make_vector called, alloc_ram_cell follows\n"));
 	arg1 = alloc_ram_cell_init (COMPOSITE_FIELD0 | (a1 >> 8),
 	                            a1 & 0xff,
 	                            VECTOR_FIELD2 | (a3 >> 8),
 	                            a3 & 0xff);
+	//IF_TRACE(debug_printf("\t#%%make_vector called, set_cdr follows\n"));
 	ram_set_cdr(header, arg1); // tie the knot
 	arg3 = _SYS_VEC_TO_RAM_OBJ(a3); /* no more allocation in this function so it's safe to put this here*/
 
