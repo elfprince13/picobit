@@ -123,7 +123,7 @@ loop:
 				const uint16 * const end = numIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
 				if (numIt != end) {
 				vec_show_loop:
-					show(*numIt);
+					show((*numIt) & 0x1fff);
 					++numIt;
 					if (numIt != end) {
 						putchar(' ');

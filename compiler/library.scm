@@ -344,10 +344,6 @@
 	  (else
 	   (memq t (cdr l))))))
 
-(define vector list)
-(define vector-ref list-ref)
-(define vector-set! list-set!)
-
 (define u8vector
   (lambda x
     (list->u8vector x)))

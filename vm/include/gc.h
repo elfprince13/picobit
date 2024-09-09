@@ -58,7 +58,7 @@ void gc ();
 
 obj alloc_ram_cell ();
 obj alloc_ram_cell_init (uint8 f0, uint8 f1, uint8 f2, uint8 f3);
-obj alloc_vec_cell (uint16 n, obj from);
+obj alloc_vec_cell (uint16 n);
 #ifdef __cplusplus
 }
 #endif

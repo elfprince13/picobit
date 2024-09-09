@@ -27,16 +27,17 @@ PRIMITIVE(#%make-string, make_string, 2)
 		TYPE_ERROR("#%make-string.0","arg2 not 0 < c <= 255");
 	}
 
+	const obj header = alloc_vec_cell (1 + a1); // leave room to nul-terminate
+	a3  = _SYS_RAM_TO_VEC_OBJ(header + 1);;
 	arg1 = alloc_ram_cell_init (COMPOSITE_FIELD0 | (a1 >> 8),
 	                            a1 & 0xff,
-	                            STRING_FIELD2,
-	                            0); // will be filled in later
-	arg2 = alloc_vec_cell (1 + a1, arg1); // leave room to nul-terminate
-	ram_set_cdr(arg1, arg2);
-	arg2 = VEC_TO_RAM_BASE_ADDR(arg2);
+	                            STRING_FIELD2 | (a3 >> 8),
+	                            a3 & 0xff);
+	ram_set_cdr(header, arg1); // tie the knot
+	a3 = VEC_TO_RAM_BASE_ADDR(a3);
 	// TODO: very janky, bypasses helper function, do not like:
-	memset(ram_mem + arg2, a2, a1);
-	ram_set(arg2 + a1, 0); // nul-terminate
+	memset(ram_mem + a3, a2, a1);
+	ram_set(a3 + a1, 0); // nul-terminate
 	arg2 = OBJ_FALSE;
 }
 
@@ -187,12 +188,13 @@ PRIMITIVE(list->string, list2string, 1)
 		++a1;
 	}
 	arg2 = arg1;
+	const obj header = alloc_vec_cell (1 + a1); // leave room to nul-terminate
+	a2  = _SYS_RAM_TO_VEC_OBJ(header + 1);;
 	arg1 = alloc_ram_cell_init (COMPOSITE_FIELD0 | (a1 >> 8),
 	                            a1 & 0xff,
-	                            STRING_FIELD2,
-	                            0); // will be filled in later
-	a2 = alloc_vec_cell (1 + a1, arg1); // leave room to nul-terminate
-	ram_set_cdr(arg1, a2);
+	                            STRING_FIELD2 | (a2 >> 8),
+	                            a2 & 0xff);
+	ram_set_cdr(header, arg1); // tie the knot
 	a2 = VEC_TO_RAM_BASE_ADDR(a2);
 	a1 = 0; // index accumulator
 	while (arg2 != OBJ_NULL) {

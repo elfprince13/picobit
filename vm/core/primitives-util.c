@@ -52,13 +52,14 @@ PRIMITIVE(string->symbol, string2symbol, 1)
 		type_error("symbol->string", "symbol");
 	}
 
+	const obj header = alloc_vec_cell (1 + a1); // leave room to nul-terminate
+	a3  = _SYS_RAM_TO_VEC_OBJ(header + 1);;
 	arg2 = alloc_ram_cell_init (COMPOSITE_FIELD0 | (a1 >> 8),
 	                            a1 & 0xff,
-	                            STRING_FIELD2,
-	                            0); // will be filled in later
-	arg1 = alloc_vec_cell (1 + a1, arg2); // leave room to nul-terminate
-	ram_set_cdr(arg2, arg1);
-	a2 = VEC_TO_RAM_BASE_ADDR(arg1);
+	                            STRING_FIELD2 | (a3 >> 8),
+	                            a3);
+	ram_set_cdr(header, arg2); // tie the knot
+	a2 = VEC_TO_RAM_BASE_ADDR(a3);
 	uint8 * dstPointer = ram_mem + a2;
 	memcpy(dstPointer, srcPointer, 1 + a1);
 

@@ -18,7 +18,9 @@ void show_type (obj o)
 	} else if (o < MIN_ROM_ENCODING) {
 		debug_printf("fixnum");
 	} else if (IN_RAM (o)) {
-		if (RAM_BIGNUM_P(o)) {
+		if (o > MAX_RAM_ENCODING) {
+			debug_printf("ram vector cell");
+		} else if (RAM_BIGNUM_P(o)) {
 			debug_printf("ram bignum");
 		} else if (RAM_PAIR_P(o)) {
 			debug_printf("ram pair");
@@ -164,7 +166,7 @@ loop:
 					debug_printf("%hhu", *numIt);
 					++numIt;
 					if (numIt != end) {
-						putchar(' ');
+						debug_printf(" ");
 						/* annoyingly tricky to write this loop with a standard construct without repeating tests */
 						goto u8vec_show_loop;
 					}
@@ -178,10 +180,10 @@ loop:
 				const uint16 * const end = numIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
 				if (numIt != end) {
 				vec_show_loop:
-					show_obj(*numIt);
+					show_obj((*numIt) & 0x1fff);
 					++numIt;
 					if (numIt != end) {
-						putchar(' ');
+						debug_printf(" ");
 						/* annoyingly tricky to write this loop with a standard construct without repeating tests */
 						goto vec_show_loop;
 					}
@@ -229,23 +231,29 @@ void show_state (rom_addr pc) {
 	fflush (stdout);
 }
 
-void show_obj_bytes (obj o) {
+const char* _show_obj_bytes (obj o, char buffer[]) {
 	if(IN_RAM(o)) {
-		debug_printf("RAM:%04hx = ", o);
-		if (OBJ_TO_RAM_ADDR(o, 0) <= RAM_BYTES - 4) {
-			debug_printf("%02hx,%02hx,%02hx,%02hx",
+		snprintf(buffer, 32, "%s:%04hx = ", ((o > MAX_RAM_ENCODING) ? "VEC" : "RAM"), o);
+		if (OBJ_TO_RAM_ADDR(o, 0) <= (VEC_BYTES + RAM_BYTES) - 4) {
+			snprintf(buffer + 11, 21, "%02hx,%02hx,%02hx,%02hx",
 			             ram_get_field0(o), ram_get_field1(o), ram_get_field2(o), ram_get_field3(o));
 		} else {
-			debug_printf("OOB!");
+			snprintf(buffer + 11, 21, "OOB!");
 		}
 		
 	} else {
-		debug_printf("ROM:%04hx = ", o);
+		snprintf(buffer, 32, "ROM:%04hx = ", o);
 		if (OBJ_TO_ROM_ADDR(o, 0) <= ROM_BYTES - 4) {
-			debug_printf("%02hx,%02hx,%02hx,%02hx",
+			snprintf(buffer + 11, 21, "%02hx,%02hx,%02hx,%02hx",
 			             rom_get_field0(o), rom_get_field1(o), rom_get_field2(o), rom_get_field3(o));
 		} else {
-			debug_printf("OOB!");
+			snprintf(buffer + 11, 21, "OOB!");
 		}
 	}
+	return buffer;
+}
+
+void show_obj_bytes (obj o) {
+	static char buffer[32];
+	debug_printf("%s",_show_obj_bytes(o, buffer));
 }

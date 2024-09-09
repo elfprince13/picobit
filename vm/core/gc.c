@@ -10,6 +10,8 @@ static obj free_list, free_vec_pointer;
 int max_live = 0;
 #endif
 
+IF_GC_TRACE(extern const char* _show_obj_bytes(obj o, char buffer[]); char vBuf[32]; char sBuf[32]; char tBuf[32]);
+
 void init_ram_heap ()
 {
 	uint8 i;
@@ -60,7 +62,9 @@ push:
 		stack = visit;
 		visit = temp;
 post_push:
-		IF_GC_TRACE((debug_printf ("push   stack=%d  visit=%d (tag=%d)  (type=", stack, visit, ram_get_gc_tags (visit)>>5), show_type(visit), debug_printf(")\n")));
+		IF_GC_TRACE((debug_printf ("push   stack=%d (%s) visit=%d (%s) (tag=%d)  (type=",
+		                           stack, _show_obj_bytes(stack, sBuf), visit, _show_obj_bytes(visit, vBuf),
+								   ram_get_gc_tags (visit)>>5), show_type(visit), debug_printf(")\n")));
 
 		if (((HAS_1_OBJECT_FIELD (visit) || HAS_N_OBJECT_FIELDS(visit)) && ram_get_gc_tag0 (visit))
 		    || (HAS_2_OBJECT_FIELDS (visit)
@@ -73,7 +77,10 @@ post_push:
 				temp = ram_get_cdr (visit);
 
 				if (IN_RAM(temp)) {
-					IF_GC_TRACE(debug_printf ("case 3\n"));
+					IF_GC_TRACE(debug_printf ("case 3:  stack=%d (%s) visit=%d (%s) temp=%d (%s)\n",
+					 stack, _show_obj_bytes(stack, sBuf),
+					 visit, _show_obj_bytes(visit, vBuf),
+					 temp, _show_obj_bytes(temp, tBuf)));
 					ram_set_gc_tags (visit, GC_TAG_1_LEFT);
 					ram_set_cdr (visit, stack);
 					goto push;
@@ -91,14 +98,14 @@ visit_field1:
 				temp = ram_get_car (visit);
 
 				if (IN_RAM(temp)) {
-					IF_GC_TRACE(debug_printf ("case 6: %04hx\n",temp));
+					IF_GC_TRACE(debug_printf ("case 6: %d\n",temp));
 					ram_set_gc_tag0 (visit, GC_TAG_0_LEFT);
 					ram_set_car (visit, stack);
 
 					goto push;
 				}
 
-				IF_GC_TRACE(debug_printf ("case 7: %04hx\n",temp));
+				IF_GC_TRACE(debug_printf ("case 7: %d\n",temp));
 			} else {
 				IF_GC_TRACE(debug_printf ("case 8\n"));
 				if (HAS_N_OBJECT_FIELDS(visit)) {
@@ -107,16 +114,28 @@ visit_field1:
 					if (IN_RAM(temp)) { // this is probably unnecessary - remove when not debugging 
 #endif //NDEBUG
 						const uint16 blockCount = ram_get_car(temp);
+
+						IF_GC_TRACE(do { 
+						const uint16 length = ram_get_car(visit);
+						if (blockCount != (1 + ((1 + length) >> 1))) {
+							IF_GC_TRACE(debug_printf("Expected: %d, found %d\n", 1 + (length >> 1), blockCount));
+							ERROR("gc.mark","broken obj vector header");
+						}
+					} while(0));
+
 						if (blockCount > 1) { // don't visit the header itself, which is included in block count!
-							IF_GC_TRACE(debug_printf("case 9: %04hx + %04hx\n", temp, blockCount));
-							temp = temp + blockCount;
+							temp = temp + blockCount - 1;
+							IF_GC_TRACE(debug_printf("case 9: stack=%d (%s) visit=%d (%s) temp=%d (%s)\n",
+								stack, _show_obj_bytes(stack, sBuf),
+								visit, _show_obj_bytes(visit, vBuf),
+								temp, _show_obj_bytes(temp, tBuf)));
 							
 							ram_set_gc_tag0(visit, GC_TAG_0_LEFT);
 							ram_set_cdr(visit, stack);
 							goto push;
 						
 						} else {
-							IF_GC_TRACE(debug_printf("case 10"));
+							IF_GC_TRACE(debug_printf("case 10\n"));
 							// fall through to mark visited for real this time and pop...
 						}
 #ifndef NDEBUG
@@ -131,7 +150,9 @@ visit_field1:
 		}
 
 pop:
-		IF_GC_TRACE(debug_printf ("pop    stack=%d  visit=%d (tag=%d)\n", stack, visit, ram_get_gc_tags (visit)>>6));
+		IF_GC_TRACE(debug_printf ("pop    stack=%d (%s)  visit=%d (%s) (tag=%d)\n",
+		                          stack, _show_obj_bytes(stack, sBuf), visit, _show_obj_bytes(visit, vBuf),
+								  ram_get_gc_tags (visit)>>6));
 
 		if (stack != OBJ_FALSE) {
 			if (HAS_2_OBJECT_FIELDS(stack) && ram_get_gc_tag1 (stack)) {
@@ -148,13 +169,16 @@ pop:
 				goto visit_field1;
 			} else if (HAS_N_OBJECT_FIELDS(stack) && ram_get_gc_tag0(stack)) {
 				if (RAM_PAIR_P(visit)) {
-					IF_GC_TRACE(debug_printf("case 12\n"));
+					IF_GC_TRACE(debug_printf("case 12: visit=%d\n", visit));
 					visit = visit - 1;
 					goto post_push; // optimization skip a bit of stack thrashing
 				} else {
-					IF_GC_TRACE(debug_printf("case 13\n"));
 					temp = ram_get_cdr (stack);
-					ram_set_cdr (stack, visit);
+					IF_GC_TRACE(debug_printf("case 13: stack=%d (%s) visit=%d (%s) temp=%d (%s)\n",
+					 stack, _show_obj_bytes(stack, sBuf),
+					 visit, _show_obj_bytes(visit, vBuf),
+					 temp, _show_obj_bytes(temp, tBuf)));
+					ram_set_cdr (stack, _SYS_RAM_TO_VEC_OBJ(visit + 1));
 					visit = stack;
 					stack = temp;
 
@@ -194,7 +218,7 @@ void sweep ()
 		    || (!RAM_COMPOSITE_P(visit)
 		        && !(ram_get_gc_tags (visit) & GC_TAG_0_LEFT))) { // 1 mark bit
 			/* unmarked? */
-			if (RAM_U8VECTOR_P(visit) || RAM_STRING_P(visit)) {
+			if (RAM_U8VECTOR_P(visit) || RAM_STRING_P(visit) || RAM_VECTOR_P(visit)) {
 				// when we sweep a vector, we also have to mark its contents as free
 				// we subtract 1 to get to the header of the block, before the data
 				obj o = _SYS_VEC_TO_RAM_OBJ(ram_get_cdr (visit) - 1);
@@ -206,6 +230,25 @@ void sweep ()
 		} else {
 			if (RAM_COMPOSITE_P(visit)) {
 				ram_set_gc_tags (visit, GC_TAG_UNMARKED);
+				if (RAM_VECTOR_P(visit)) {
+					const obj start = _SYS_VEC_TO_RAM_OBJ(ram_get_cdr(visit));
+					const obj header = start - 1;
+					const uint16 blockCount = ram_get_car(header);
+					IF_GC_TRACE(debug_printf("Vector %d (len %d, header at %d, blockcount %d) was marked\n", visit, ram_get_car(visit), header, blockCount));
+					IF_GC_TRACE(do { 
+						const uint16 length = ram_get_car(visit);
+						if (blockCount != (1 + ((1 + length) >> 1))) {
+							IF_GC_TRACE(debug_printf("Expected: %d, found %d\n", 1 + (length >> 1), blockCount));
+							ERROR("gc.sweep","broken obj vector header");
+						}
+					} while(0));
+					const obj end = start + blockCount - 1; // remove the header;
+					for (obj subVisit = start; subVisit != end; ++subVisit) {
+						IF_GC_TRACE(debug_printf("\tresetting mark on vector field %d, %s in [%d,%d)->", subVisit, _show_obj_bytes(subVisit, vBuf), start, end));
+						ram_set_gc_tags(subVisit, GC_TAG_UNMARKED);
+						IF_GC_TRACE(debug_printf("%s\n", _show_obj_bytes(subVisit, vBuf)));
+					}
+				}
 			} else { // only 1 mark bit to unset
 				ram_set_gc_tag0 (visit, GC_TAG_UNMARKED);
 			}
@@ -235,17 +278,17 @@ void gc ()
 
 	IF_TRACE(debug_printf("\nGC BEGINS\n"));
 
-	IF_GC_TRACE((debug_printf("arg1: "),show_obj_bytes(arg1),debug_printf("\n")));
+	IF_GC_TRACE(debug_printf("arg1: %s\n",_show_obj_bytes(arg1, tBuf)));
 	mark (arg1);
-	IF_GC_TRACE((debug_printf("arg2: "),show_obj_bytes(arg2),debug_printf("\n")));
+	IF_GC_TRACE(debug_printf("arg2: %s\n",_show_obj_bytes(arg2, tBuf)));
 	mark (arg2);
-	IF_GC_TRACE((debug_printf("arg3: "),show_obj_bytes(arg3),debug_printf("\n")));
+	IF_GC_TRACE(debug_printf("arg3: %s\n",_show_obj_bytes(arg3, tBuf)));
 	mark (arg3);
-	IF_GC_TRACE((debug_printf("arg4: "),show_obj_bytes(arg4),debug_printf("\n")));
+	IF_GC_TRACE(debug_printf("arg4: %s\n",_show_obj_bytes(arg4, tBuf)));
 	mark (arg4);
-	IF_GC_TRACE((debug_printf("cont: "),show_obj_bytes(cont),debug_printf("\n")));
+	IF_GC_TRACE(debug_printf("cont: %s\n",_show_obj_bytes(cont, tBuf)));
 	mark (cont);
-	IF_GC_TRACE((debug_printf("env: "),show_obj_bytes(env),debug_printf("\n")));
+	IF_GC_TRACE(debug_printf("env: %s\n",_show_obj_bytes(env, tBuf)));
 	mark (env);
 
 #ifdef CONFIG_BIGNUM_LONG
@@ -378,7 +421,11 @@ void compact ()
 	
 }
 
-obj alloc_vec_cell (uint16 n, obj from)
+// orphan vec cells are never GCed but GC can run
+// whenever we allocate so it's important we allocate
+// this first to avoid leaving the ram space pointer
+// in an invalid state.
+obj alloc_vec_cell (uint16 n)
 {
 	if (n > 0x1fff) {
 		TYPE_ERROR("alloc_vec_cell","13-bit fixnum");
@@ -417,13 +464,12 @@ obj alloc_vec_cell (uint16 n, obj from)
 
 	// store block size
 	ram_set_car (o, n);
-	// set up pointer back to the regular heap header
-	// stored in the car, instead of the free list pointer
-	ram_set_cdr (o, from);
+	
 	ram_set_gc_tag0 (o, GC_TAG_0_LEFT); // mark block as used
 
-	// return pointer to start of data, skipping the header
-	return (obj)(_SYS_RAM_TO_VEC_OBJ(o + 1));
+	// n.b. pointer to object-space header is handle after the fact
+	// return pointer to header, follow-up code will need to advance this
+	return o;
 }
 
 #ifdef CONFIG_GC_STATISTICS_PRIMITIVE
