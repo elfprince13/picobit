@@ -48,8 +48,18 @@ void init_ram_heap ()
 #endif
 }
 
+_Static_assert(_ETT(0x3F, 0xFF) == 0x00, "number test failed");
+_Static_assert(_ETT(0x7F, 0xFF) == 0x01, "closure test failed");
+_Static_assert(_ETT(0xFF, 0x1F) == 0x08, "pair test failed");
+_Static_assert(_ETT(0xFF, 0x3F) == 0x09, "symbol test failed");
+_Static_assert(_ETT(0xFF, 0x5F) == 0x0A, "string test failed");
+_Static_assert(_ETT(0xFF, 0x7F) == 0x0B, "u8vec test failed");
+_Static_assert(_ETT(0xFF, 0x9F) == 0x0C, "cont. test failed");
+_Static_assert(_ETT(0xFF, 0xBF) == 0x0D, "o-vec test failed");
+
 void mark (obj temp)
 {
+	uint8 typeTag;
 	/* mark phase */
 
 	obj stack;
@@ -62,53 +72,63 @@ push:
 		stack = visit;
 		visit = temp;
 post_push:
+		typeTag = RAM_EXTRACT_TYPE_TAG(visit);
 		IF_GC_TRACE((debug_printf ("push   stack=%d (%s) visit=%d (%s) (tag=%d)  (type=",
 		                           stack, _show_obj_bytes(stack, sBuf), visit, _show_obj_bytes(visit, vBuf),
-								   ram_get_gc_tags (visit)>>5), show_type(visit), debug_printf(")\n")));
-
-		if (((HAS_1_OBJECT_FIELD (visit) || HAS_N_OBJECT_FIELDS(visit)) && ram_get_gc_tag0 (visit))
-		    || (HAS_2_OBJECT_FIELDS (visit)
+								   ram_get_gc_tags (visit)>>5), show_type(visit), debug_printf(" aka %02hhx)\n",typeTag)));
+		
+		if ((HAS_1_OBJECT_FIELD (typeTag) && ram_get_gc_tag0 (visit))
+		    || ((HAS_2_OBJECT_FIELDS (typeTag) || HAS_N_OBJECT_FIELDS(typeTag))
 		        && (ram_get_gc_tags (visit) != GC_TAG_UNMARKED))) {
 			IF_GC_TRACE(debug_printf ("case 1\n"));
 		} else {
-			if (HAS_2_OBJECT_FIELDS(visit)) { // pairs and continuations
-				IF_GC_TRACE(debug_printf ("case 2\n"));
+			switch ((PicobitType)typeTag) {
+				// 2 object fields
+				case Pair: __attribute__ ((fallthrough));
+				case Continuation:
+					IF_GC_TRACE(debug_printf ("case 2\n"));
 
-				temp = ram_get_cdr (visit);
+					temp = ram_get_cdr (visit);
 
-				if (IN_RAM(temp)) {
-					IF_GC_TRACE(debug_printf ("case 3:  stack=%d (%s) visit=%d (%s) temp=%d (%s)\n",
-					 stack, _show_obj_bytes(stack, sBuf),
-					 visit, _show_obj_bytes(visit, vBuf),
-					 temp, _show_obj_bytes(temp, tBuf)));
-					ram_set_gc_tags (visit, GC_TAG_1_LEFT);
-					ram_set_cdr (visit, stack);
-					goto push;
-				}
+					if (IN_RAM(temp)) {
+						IF_GC_TRACE(debug_printf ("case 3:  stack=%d (%s) visit=%d (%s) temp=%d (%s)\n",
+						stack, _show_obj_bytes(stack, sBuf),
+						visit, _show_obj_bytes(visit, vBuf),
+						temp, _show_obj_bytes(temp, tBuf)));
+						ram_set_gc_tags (visit, GC_TAG_1_LEFT);
+						ram_set_cdr (visit, stack);
+						goto push;
+					}
 
-				IF_GC_TRACE(debug_printf ("case 4\n"));
+					IF_GC_TRACE(debug_printf ("case 4\n"));
 
-				goto visit_field1;
-			}
+					goto visit_field0;
+				// 1 object field
+				case Integer: __attribute__ ((fallthrough));
+				case Closure: __attribute__ ((fallthrough));
+				case Symbol:
+					IF_GC_TRACE(debug_printf ("case 5\n"));
 
-			if (HAS_1_OBJECT_FIELD(visit)) {
-				IF_GC_TRACE(debug_printf ("case 5\n"));
+visit_field0:
+					temp = ram_get_car (visit);
 
-visit_field1:
-				temp = ram_get_car (visit);
+					if (IN_RAM(temp)) {
+						IF_GC_TRACE(debug_printf ("case 6: %d\n",temp));
+						ram_set_gc_tag0 (visit, GC_TAG_0_LEFT);
+						ram_set_car (visit, stack);
 
-				if (IN_RAM(temp)) {
-					IF_GC_TRACE(debug_printf ("case 6: %d\n",temp));
-					ram_set_gc_tag0 (visit, GC_TAG_0_LEFT);
-					ram_set_car (visit, stack);
+						goto push;
+					}
 
-					goto push;
-				}
-
-				IF_GC_TRACE(debug_printf ("case 7: %d\n",temp));
-			} else {
-				IF_GC_TRACE(debug_printf ("case 8\n"));
-				if (HAS_N_OBJECT_FIELDS(visit)) {
+					IF_GC_TRACE(debug_printf ("case 7: %d\n",temp));
+				// 1 field but can't point to any other objects
+				case String: __attribute__ ((fallthrough));
+				case U8Vec:
+					IF_GC_TRACE(debug_printf ("case 8\n"));
+					break;
+				// Spooky: 1 field that is really N fields
+				case Vector:
+					// get the vector header
 					temp = _SYS_VEC_TO_RAM_OBJ(ram_get_cdr(visit)) - 1;
 #ifndef NDEBUG
 					if (IN_RAM(temp)) { // this is probably unnecessary - remove when not debugging 
@@ -116,24 +136,39 @@ visit_field1:
 						const uint16 blockCount = ram_get_car(temp);
 
 						IF_GC_TRACE(do { 
-						const uint16 length = ram_get_car(visit);
-						if (blockCount != (1 + ((1 + length) >> 1))) {
-							IF_GC_TRACE(debug_printf("Expected: %d, found %d\n", 1 + (length >> 1), blockCount));
-							ERROR("gc.mark","broken obj vector header");
-						}
-					} while(0));
+							const uint16 length = ram_get_car(visit);
+							if (blockCount != (1 + ((1 + length) >> 1))) {
+								IF_GC_TRACE(debug_printf("Expected: %d, found %d\n", 1 + (length >> 1), blockCount));
+								ERROR("gc.mark","broken obj vector header");
+							}
+						} while(0));
 
 						if (blockCount > 1) { // don't visit the header itself, which is included in block count!
+							// set WIP status on object
+							ram_set_gc_tags(visit, GC_TAG_1_LEFT);
+							const uint16 length = ram_get_car(visit);
+							// replace back pointer with length as extra storage
+							// we will need this to re-derive block count when
+							// the finish traversing the vector
+							ram_set_cdr(temp, length);
+							// replace original length with stack
+							ram_set_car(visit, stack);
 							temp = temp + blockCount - 1;
 							IF_GC_TRACE(debug_printf("case 9: stack=%d (%s) visit=%d (%s) temp=%d (%s)\n",
 								stack, _show_obj_bytes(stack, sBuf),
 								visit, _show_obj_bytes(visit, vBuf),
 								temp, _show_obj_bytes(temp, tBuf)));
-							
-							ram_set_gc_tag0(visit, GC_TAG_0_LEFT);
-							ram_set_cdr(visit, stack);
-							goto push;
-						
+							stack = visit;
+visit_fieldNodd:
+							ram_set_gc_tags(temp, GC_TAG_1_LEFT);
+							visit = ram_get_cdr(temp);
+							if (IN_RAM(visit)) {
+								IF_GC_TRACE(debug_printf("case 9a: visit=%d (%s)\n",
+									visit, _show_obj_bytes(visit, vBuf)));
+								goto post_push;
+							} else {
+								goto pop_vector;
+							}
 						} else {
 							IF_GC_TRACE(debug_printf("case 10\n"));
 							// fall through to mark visited for real this time and pop...
@@ -143,7 +178,7 @@ visit_field1:
 						ERROR("gc.mark", "RAM vector pointing at ROM?");
 					}
 #endif // NDEBUG
-				}
+
 			}
 
 			ram_set_gc_tag0 (visit, GC_TAG_0_LEFT);
@@ -155,46 +190,91 @@ pop:
 								  ram_get_gc_tags (visit)>>6));
 
 		if (stack != OBJ_FALSE) {
-			if (HAS_2_OBJECT_FIELDS(stack) && ram_get_gc_tag1 (stack)) {
-				IF_GC_TRACE(debug_printf ("case 11\n"));
+			typeTag = RAM_EXTRACT_TYPE_TAG(stack);
+			switch((PicobitType)typeTag) {
+				// 2 object fields
+				case Pair: __attribute__ ((fallthrough));
+				case Continuation:
+					if (ram_get_gc_tag1(stack)) {
+						IF_GC_TRACE(debug_printf ("case 11\n"));
 
-				temp = ram_get_cdr (stack);  /* pop through cdr */
-				ram_set_cdr (stack, visit);
-				visit = stack;
-				stack = temp;
+						temp = ram_get_cdr (stack);  /* pop through cdr */
+						ram_set_cdr (stack, visit);
+						visit = stack;
+						stack = temp;
 
-				ram_set_gc_tag1(visit, GC_TAG_UNMARKED);
-				// we unset the "1-left" bit
+						ram_set_gc_tag1(visit, GC_TAG_UNMARKED);
+						// we unset the "1-left" bit
 
-				goto visit_field1;
-			} else if (HAS_N_OBJECT_FIELDS(stack) && ram_get_gc_tag0(stack)) {
-				if (RAM_PAIR_P(visit)) {
-					IF_GC_TRACE(debug_printf("case 12: visit=%d\n", visit));
-					visit = visit - 1;
-					goto post_push; // optimization skip a bit of stack thrashing
-				} else {
-					temp = ram_get_cdr (stack);
-					IF_GC_TRACE(debug_printf("case 13: stack=%d (%s) visit=%d (%s) temp=%d (%s)\n",
-					 stack, _show_obj_bytes(stack, sBuf),
-					 visit, _show_obj_bytes(visit, vBuf),
-					 temp, _show_obj_bytes(temp, tBuf)));
-					ram_set_cdr (stack, _SYS_RAM_TO_VEC_OBJ(visit + 1));
+						goto visit_field0;
+					}
+					__attribute__ ((fallthrough));
+				// 1 object field
+				case Integer: __attribute__ ((fallthrough));
+				case Closure: __attribute__ ((fallthrough));
+				case Symbol:
+					IF_GC_TRACE(debug_printf ("case 12\n"));
+
+					temp = ram_get_car (stack);  /* pop through car */
+					ram_set_car (stack, visit);
 					visit = stack;
 					stack = temp;
 
 					goto pop;
-				}
-				
+				// Spooky: 1 field that is really N fields
+				case Vector:
+pop_vector:
+					// get the vector header - don't need current visit anywhere,
+					// we never overwrote its id in the vector
+					visit = _SYS_VEC_TO_RAM_OBJ(ram_get_cdr(stack)) - 1;
+					const uint16 blockCount = ram_get_car(visit);
+					temp = visit + blockCount - 1;
+					if (blockCount > 1) {
+						IF_GC_TRACE(debug_printf("case 13: visit=%d\n", visit));
+						if (ram_get_gc_tag0(temp)) {
+							// done visiting here...
+							ram_set_car(visit, blockCount - 1);
+							--temp;
+							goto visit_fieldNodd;
+						} else if (ram_get_gc_tag1(temp)) {
+							ram_set_gc_tags(temp, GC_TAG_0_LEFT);
+							visit = ram_get_car(temp);
+							if (IN_RAM(visit)) {
+								goto post_push;
+							} else {
+								goto pop_vector; 
+							}
+						} else {
+							ERROR("gc.mark.pop", "inconsistent tag state");
+						}
+					} else if (ram_get_gc_tag1(stack)) {
+						IF_GC_TRACE(debug_printf("case 14: stack=%d (%s) visit=%d (%s) temp=%d (%s)\n",
+							stack, _show_obj_bytes(stack, sBuf),
+							visit, _show_obj_bytes(visit, vBuf),
+							temp, _show_obj_bytes(temp, tBuf)));
+						// all done, set tag from in progress to done
+						// and restore the field layout
+						ram_set_gc_tags(stack, GC_TAG_0_LEFT);
+						const uint16 length = ram_get_cdr(temp);
+						ram_set_cdr(temp, stack);
+						ram_set_car(temp, (1 + ((1 + length) >> 1)));
+						temp = ram_get_car(stack);
+						// if we set visit = length, it would be gross
+						// but we could jump to case Closure: below
+						// to save repeated code, at the cost of one
+						// extra jump/pipeline flush
+						ram_set_car(stack, length);
+						visit = stack;
+						stack = temp;
+						goto pop;
+					} else {
+						ERROR("gc.mark.pop", "already visited");
+					}
+				// 1 field but can't point to any other objects
+				case String: __attribute__ ((fallthrough));
+				case U8Vec:
+					ERROR("gc.mark.pop", "Unexpected type!");
 			}
-
-			IF_GC_TRACE(debug_printf ("case 14\n"));
-
-			temp = ram_get_car (stack);  /* pop through car */
-			ram_set_car (stack, visit);
-			visit = stack;
-			stack = temp;
-
-			goto pop;
 		}
 	}
 }
