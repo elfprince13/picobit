@@ -335,6 +335,7 @@
                      4))))
              (asm-label-pos label)))) ; pointer to normal object header
         (asm-label d3)
+        ;;;;(displayln (~a "Storing " (~v obj) " to backing store"))
         (asm-string obj)] ; doesn't handle multi-byte encodings nicely
        [(u8vector? obj)
         (asm-align 4 0)
@@ -352,6 +353,7 @@
                      4))))
              (asm-label-pos label)))) ; pointer to normal object header
         (asm-label d3) ; normal object header points to contents.
+        ;;;;(displayln (~a "Storing " (~v obj) " to backing store"))
         (asm-bytes obj)] ; doesn't handle multi-byte encodings nicely
        [else
         (void)])]))
@@ -382,6 +384,8 @@
         [_
          (values constants globals labels)])))
 
+  ;;;;(display (~v constants)) (newline)
+  ;;;;(display (~v globals)) (newline)
   ;; Constants and globals are sorted by frequency of reference.
   ;; That way, the most often referred to constants and globals get
   ;; the lowest encodings. Low encodings mean that they can be

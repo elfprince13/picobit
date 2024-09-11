@@ -344,6 +344,32 @@
 	  (else
 	   (memq t (cdr l))))))
 
+(define vector
+  (lambda x
+    (list->vector x)))
+(define list->vector
+  (lambda (x)
+    (let* ((n (length x))
+	   (v (#%make-vector n #f)))
+      (#%list->vector-loop v 0 x)
+      v)))
+(define #%list->vector-loop
+  (lambda (v n x)
+    (vector-set! v n (car x))
+    (if (not (null? (cdr x)))
+	(#%list->vector-loop v (#%+ n 1) (cdr x)))))
+(define make-vector
+  (lambda (n . x)
+    (#%make-vector n (if (pair? x) (car x) #f))))
+(define vector-copy!
+  (lambda (source source-start target target-start n)
+    (if (> n 0)
+        (begin (vector-set! target target-start
+                              (vector-ref source source-start))
+               (vector-copy! source (+ source-start 1)
+                               target (+ target-start 1)
+                               (- n 1))))))
+
 (define u8vector
   (lambda x
     (list->u8vector x)))
