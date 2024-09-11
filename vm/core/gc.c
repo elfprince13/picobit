@@ -163,10 +163,11 @@ visit_fieldNodd:
 							ram_set_gc_tags(temp, GC_TAG_1_LEFT);
 							visit = ram_get_cdr(temp);
 							if (IN_RAM(visit)) {
-								IF_GC_TRACE(debug_printf("case 9a: visit=%d (%s)\n",
+								IF_GC_TRACE(debug_printf("\tcase 9a: visit=%d (%s)\n",
 									visit, _show_obj_bytes(visit, vBuf)));
 								goto post_push;
 							} else {
+								IF_GC_TRACE(debug_printf("\tcase 9b\n"));
 								goto pop_vector;
 							}
 						} else {
@@ -230,18 +231,28 @@ pop_vector:
 					const uint16 blockCount = ram_get_car(visit);
 					temp = visit + blockCount - 1;
 					if (blockCount > 1) {
-						IF_GC_TRACE(debug_printf("case 13: visit=%d\n", visit));
+						IF_GC_TRACE(debug_printf("case 13: visit=%d (%s)\n", visit, _show_obj_bytes(visit, vBuf)));
 						if (ram_get_gc_tag0(temp)) {
+							IF_GC_TRACE(debug_printf("\tcase13a\n"));
 							// done visiting here...
 							ram_set_car(visit, blockCount - 1);
-							--temp;
-							goto visit_fieldNodd;
+							if (--temp > visit) {
+								IF_GC_TRACE(debug_printf("\t\tcase13a1\n"));
+								goto visit_fieldNodd;
+							} else {
+								IF_GC_TRACE(debug_printf("\t\tcase13a2\n"));
+								goto pop_vector;
+							}
+							
 						} else if (ram_get_gc_tag1(temp)) {
+							IF_GC_TRACE(debug_printf("\tcase13b\n"));
 							ram_set_gc_tags(temp, GC_TAG_0_LEFT);
 							visit = ram_get_car(temp);
 							if (IN_RAM(visit)) {
+								IF_GC_TRACE(debug_printf("\t\tcase13b1\n"));
 								goto post_push;
 							} else {
+								IF_GC_TRACE(debug_printf("\t\tcase13b2\n"));
 								goto pop_vector; 
 							}
 						} else {
@@ -459,6 +470,11 @@ void compact ()
 	while (cur < free_vec_pointer) {
 		cur_size  = ram_get_car(cur);
 		IF_GC_TRACE(debug_printf("compact: header block %hu (len %hu) has mark %d\n", cur, cur_size, ram_get_gc_tag0(cur)));
+#ifndef DEBUG
+		if (cur_size == 0) {
+			ERROR("gc.compact", "invalid header!");
+		}
+#endif
 
 		if (prev && !ram_get_gc_tag0 (prev)) { // previous block is free
 			if (!ram_get_gc_tag0 (cur)) { // current is free too, merge free spaces
@@ -468,8 +484,11 @@ void compact ()
 				// fix header in the object heap to point to the data's new
 				// location
 				ram_set_cdr(ram_get_cdr(cur), _SYS_RAM_TO_VEC_OBJ(prev+1));
-
-				while(cur_size--) { // copy cur's data, which includes header
+				
+				// copy cur's data, which includes header
+				// can't use postfix decrement for this because integer
+				// promotion rules make it UB
+				while ((int16_t)(cur_size = (uint16)(cur_size - 1)) >= 0) {
 					ram_set_field0(prev, ram_get_field0(cur));
 					ram_set_field1(prev, ram_get_field1(cur));
 					ram_set_field2(prev, ram_get_field2(cur));
@@ -492,7 +511,9 @@ void compact ()
 	}
 
 	if (prev) {
-		prev = cur;
+		if(ram_get_gc_tag0(prev)) {
+			prev = cur;
+		}
 		IF_GC_TRACE(debug_printf("free_vec_pointer compacted from %hu to %hu\n", free_vec_pointer, prev));
 		// free space is now all at the end
 		free_vec_pointer = prev;

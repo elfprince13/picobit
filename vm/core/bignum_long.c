@@ -365,13 +365,13 @@ integer sub (integer x, integer y)
 		}
 
 		dx = integer_lo (x);
-		dy = ~integer_lo (y);
-		dx = dx + dy; /* may wrap around */
+		dy = (digit)(~integer_lo (y));
+		dx = (digit)(dx + dy); /* may wrap around */
 
 		if (obj_eq (negc, ZERO)) {
 			negc = negative_carry (dx < dy);
 		} else {
-			dx++; /* may wrap around */
+			dx = (digit)(dx + 1); /* may wrap around */
 			negc = negative_carry (dx <= dy);
 		}
 
