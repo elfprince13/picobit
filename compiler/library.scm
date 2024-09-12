@@ -360,7 +360,7 @@
 	(#%list->vector-loop v (#%+ n 1) (cdr x)))))
 (define make-vector
   (lambda (n . x)
-    (#%make-vector n (if (pair? x) (car x) #f))))
+    (#%make-vector n (if (pair? x) (car x) 0))))
 (define vector-copy!
   (lambda (source source-start target target-start n)
     (if (> n 0)
@@ -369,6 +369,14 @@
                (vector-copy! source (+ source-start 1)
                                target (+ target-start 1)
                                (- n 1))))))
+(define vector->list
+  (lambda (v)
+    (let loop ([res '()]
+               [i (- (vector-length v) 1)])
+      (let ([next-res (cons (vector-ref v i) res)])
+        (if (eq? i 0)
+            next-res
+            (loop next-res (- i 1)))))))
 
 (define u8vector
   (lambda x

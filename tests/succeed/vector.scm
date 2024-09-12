@@ -5,4 +5,4 @@
 (displayln (vector-ref y 2))
 (vector-set! y 2 7)
 (displayln (vector-ref y 2))
-(displayln (+ (car x) (vector-ref x 1) (vector-ref y 3)))
+(displayln (+ (car (vector->list x)) (vector-ref x 1) (vector-ref y 3)))

@@ -85,6 +85,8 @@
     (,#'u8vector-ref      . ,u8vector-ref)
     (,#'u8vector?         . ,u8vector?)
     (,#'u8vector-length   . ,u8vector-length)
+    (,#'vector?           . ,vector?)
+    (,#'vector-length     . ,vector-length)
     (,#'boolean?          . ,boolean?)
     (,#'bitwise-ior       . ,bitwise-ior)
     (,#'bitwise-xor       . ,bitwise-xor)))
