@@ -152,7 +152,7 @@ dispatch:
 		/*************************************************************************/
 	case PUSH_CONSTANT1 :
 
-		IF_TRACE(debug_printf("  (push-constant "); show_obj (bytecode_lo4); debug_printf (")\n"));
+		IF_TRACE(debug_printf("  (push-constant "); show_obj (bytecode_lo4); debug_printf("="); show_obj_bytes(bytecode_lo4); debug_printf (")\n"));
 
 		arg1 = bytecode_lo4;
 
@@ -163,7 +163,7 @@ dispatch:
 		/*************************************************************************/
 	case PUSH_CONSTANT2 :
 
-		IF_TRACE(debug_printf("  (push-constant "); show_obj (bytecode_lo4+16); debug_printf (")\n"));
+		IF_TRACE(debug_printf("  (push-constant "); show_obj (bytecode_lo4+16); debug_printf("="); show_obj_bytes(bytecode_lo4+16); debug_printf (")\n"));
 		arg1 = bytecode_lo4+16;
 
 		push_arg1();

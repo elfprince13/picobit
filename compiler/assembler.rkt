@@ -72,10 +72,9 @@
                 ;; TODO? encode each character as well
                 (vector-set! descr 3 (asm-make-label 'string-store))
                 new-constants]
-               [(vector? o) ; ordinary vectors are stored as lists
-                (let ([elems (vector->list o)])
-                  (vector-set! descr 3 elems)
-                  (add-constant elems new-constants #f))]
+               [(vector? o)
+                  (vector-set! descr 3 (asm-make-label 'vector-store))
+                  (add-constants (vector->list o) new-constants)]
                [(u8vector? o)
                 (vector-set! descr 3 (asm-make-label 'u8vector-store))
                 new-constants]
@@ -291,11 +290,21 @@
                           (+ code-start 4)) ; subtract header
                        4))))))]
            [(vector? obj) ; ordinary vectors are stored as lists
-            (let ([obj-car (encode-constant (car d3) constants)]
-                  [obj-cdr (encode-constant (cdr d3) constants)])
-              (asm-32 (+
-                       (* #x10000 (+ #x8000 obj-car))
-                       (+ #x0000 obj-cdr))))]
+            (asm-defer
+             (4)
+             (let ([data-store (asm-label-pos d3)]
+                   [l (vector-length obj)])
+               ;; length is stored raw, not encoded as an object
+               (asm-32
+                (+
+                 (* #x10000 (+ #x8000 l))
+                 (+ #xA000
+                    ; sort of invert C macro OBJ_TO_ROM_ADDR
+                    ; (skip MIN_ROM_ENCODING and field offset)
+                    (quotient 
+                     (- data-store
+                        (+ code-start 4)) ; subtract header
+                     4))))))]
            [(u8vector? obj)
             (asm-defer
              (4)
@@ -315,7 +324,7 @@
            [else
             (compiler-error "unknown object type" obj)])]))
 
-(define (assemble-byte-buf for-const)
+(define (assemble-byte-buf for-const constants)
   (match for-const
     [`(,obj . ,(and descr `#(,_ ,label ,_ ,d3)))
      (cond
@@ -325,6 +334,7 @@
         ;; implementation but we want to distinguish mutable / immutable
         ;; data so we will set leading bit to 1 for immutable
         (asm-defer (4)
+         ;;;;(displayln (~a "Storing " (~v obj) " to backing store, object header at " (asm-label-pos label) ", vector data starts at " (asm-label-pos d3)))
          (asm-32
           (+ (*
               #x10000
@@ -342,6 +352,7 @@
         ;; implementation but we want to distinguish mutable / immutable
         ;; data so we will set leading bit to 1 for immutable
         (asm-defer (4)
+         ;;;;(displayln (~a "Storing " (~v obj) " to backing store, object header at " (asm-label-pos label) ", vector data starts at " (asm-label-pos d3)))
          (asm-32
           (+ (*
               #x10000
@@ -353,6 +364,41 @@
              (asm-label-pos label)))) ; pointer to normal object header
         (asm-label d3) ; normal object header points to contents.
         (asm-bytes obj)] ; doesn't handle multi-byte encodings nicely
+       [(vector? obj)
+        (asm-align 4 0)
+        ;; header: leading 2 bits unused by RAM vectors in original
+        ;; implementation but we want to distinguish mutable / immutable
+        ;; data so we will set leading bit to 1 for immutable
+        (let ([n-obj (vector-length obj)])
+         (asm-defer (4)
+           ;;;;(displayln (~a "Storing " (~v obj) " to backing store, object header at " (asm-label-pos label) ", vector data starts at " (asm-label-pos d3)))
+           (asm-32
+            (+ (*
+                #x10000
+                (+ #x8000
+                   (+ 1 ; this header block
+                      (quotient
+                       (+ 1 n-obj) ;+1 for "ceil" in flooring division by 2
+                       2))))
+               (asm-label-pos label)))) ; pointer to normal object header
+         (asm-label d3) ; normal object header points to contents.
+         (let ([asm-sub-obj
+                (lambda (sub-obj i)
+                  (asm-16
+                   (+
+                    (encode-constant sub-obj constants)
+                    ; we want our objects in order so that ref/set! are
+                    ; easy to implement, but we also want it to look like a pair
+                    ; in memory for convenience so we set the pair bit in whichever
+                    ; reference will be car depending on endianness
+                    (if (or
+                         (and (even? i) asm-big-endian?)
+                         (and (odd? i) (not asm-big-endian?))) #x8000 #x0000))))])
+           (for ([sub-obj obj]
+                 [i (in-range n-obj)])
+             (asm-sub-obj sub-obj i))
+           (when (odd? n-obj)
+             (asm-sub-obj (encode-direct #f) n-obj))))] 
        [else
         (void)])]))
 
@@ -382,6 +428,8 @@
         [_
          (values constants globals labels)])))
 
+  ;;;;(display (~v constants)) (newline)
+  ;;;;(display (~v globals)) (newline)
   ;; Constants and globals are sorted by frequency of reference.
   ;; That way, the most often referred to constants and globals get
   ;; the lowest encodings. Low encodings mean that they can be
@@ -443,7 +491,7 @@
          (compiler-error "unknown instruction" instr)]))
     ;; text + byte data
     (for ([c (in-list constants)])
-      (assemble-byte-buf c))
+      (assemble-byte-buf c constants))
 
     (asm-assemble)
 

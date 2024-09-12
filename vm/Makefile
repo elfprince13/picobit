@@ -98,7 +98,7 @@ include arch/Makefile
 prim-gen = gawk -f scripts/scanner.awk -f scripts/prim-$(1).awk \
 	.primitives.p >$(2)
 
-.primitives.p: include/arch $(obj-y)
+.primitives.p: include/arch $(obj-y) .config
 	rm -f $@
 	for object in $(filter %.c,$(obj-y)); do \
 		$(CROSS)clang-cpp -DNO_PRIMITIVE_EXPAND $(CFLAGS) \
@@ -109,7 +109,7 @@ prim-gen = gawk -f scripts/scanner.awk -f scripts/prim-$(1).awk \
 	$(call prim-gen,dispatchgen,core/gen.dispatch.c)
 
 .PHONY: ../compiler/gen.config.rkt
-../compiler/gen.config.rkt:
+../compiler/gen.config.rkt: .config $(arch)/Makefile
 	@echo "#lang racket" >$@
 	@echo "" >>$@
 	@echo "(define code-start $(load-address))" >>$@

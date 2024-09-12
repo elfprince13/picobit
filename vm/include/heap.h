@@ -74,7 +74,8 @@ uint16 VEC_TO_ROM_BASE_ADDR(uint16 o)
 {
 	return (o << 2) + (CODE_START + 4);
 }
-// don't use these with OBJ_TO_RAM_ADDR, danger!
+// danger! don't use these with OBJ_TO_RAM_ADDR to access individual bytes
+// as the code is endian-agnostic.
 uint16 _SYS_VEC_TO_RAM_OBJ(uint16 o)
 {
 	return o + MAX_RAM_ENCODING;
@@ -83,14 +84,25 @@ uint16 _SYS_RAM_TO_VEC_OBJ(uint16 o)
 {
 	return o - MAX_RAM_ENCODING;
 }
+uint16 _SYS_VEC_TO_ROM_OBJ(uint16 o)
+{
+	return o + MIN_ROM_ENCODING;
+}
+uint16 _SYS_ROM_TO_VEC_OBJ(uint16 o)
+{
+	return o - MIN_ROM_ENCODING;
+}
 #else
-#define OBJ_TO_RAM_ADDR(o,f) (((uint16)((o) - MIN_RAM_ENCODING) << 2) + (f))
-#define OBJ_TO_ROM_ADDR(o,f) (((uint16)((o) - MIN_ROM_ENCODING) << 2) + (CODE_START + 4 + (f)))
+#define OBJ_TO_RAM_ADDR(o,f) ((uint16)(((uint16)((o) - MIN_RAM_ENCODING) << 2) + (f)))
+#define OBJ_TO_ROM_ADDR(o,f) ((uint16)(((uint16)((o) - MIN_ROM_ENCODING) << 2) + (CODE_START + 4 + (f))))
 #define VEC_TO_RAM_BASE_ADDR(o) ((uint16)(((uint16)(o) + MAX_RAM_ENCODING + 1 - MIN_RAM_ENCODING) << 2))
 #define VEC_TO_ROM_BASE_ADDR(o) ((uint16)(((uint16)(o) << 2) + (CODE_START + 4)))
-// don't use these with OBJ_TO_RAM_ADDR, danger!
-#define _SYS_VEC_TO_RAM_OBJ(o) ((o) + MAX_RAM_ENCODING + 1)
-#define _SYS_RAM_TO_VEC_OBJ(o) ((o) - MAX_RAM_ENCODING - 1)
+// danger! don't use these with OBJ_TO_RAM_ADDR to access individual bytes
+// as the code is endian-agnostic.
+#define _SYS_VEC_TO_RAM_OBJ(o) ((uint16)((o) + MAX_RAM_ENCODING + 1))
+#define _SYS_RAM_TO_VEC_OBJ(o) ((uint16)((o) - MAX_RAM_ENCODING - 1))
+#define _SYS_VEC_TO_ROM_OBJ(o) ((uint16)((o) + MIN_ROM_ENCODING))
+#define _SYS_ROM_TO_VEC_OBJ(o) ((uint16)((o) - MIN_ROM_ENCODING))
 #endif
 
 #ifdef LESS_MACROS

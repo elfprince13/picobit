@@ -30,8 +30,8 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case 4: __attribute__ ((fallthrough));
         case 5: __attribute__ ((fallthrough));
         case 6: 
-            longBuffer[1] = '0';
-            longBuffer[2] = hexDigits[c];
+            longBuffer[2] = '0';
+            longBuffer[3] = hexDigits[c];
             *escape = longBuffer;
             return 0;
         case '\a':   // 07 bell / alert
@@ -65,8 +65,8 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case '\x0E': /* 0xe */ __attribute__ ((fallthrough));
         case '\x0F': /* 0xf */
             // duplicate code is probably cheaper than second jump
-            longBuffer[1] = '0';
-            longBuffer[2] = hexDigits[c];
+            longBuffer[2] = '0';
+            longBuffer[3] = hexDigits[c];
             *escape = longBuffer;
             return 0;
         case '\x10': /* 0x10 */ __attribute__ ((fallthrough));
@@ -81,8 +81,8 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case '\x19': /* 0x19 */ __attribute__ ((fallthrough));
         case '\x1a': /* 0x1a */
             // duplicate code is probably cheaper than second jump
-            longBuffer[1] = '1';
-            longBuffer[2] = hexDigits[c & 0xf];
+            longBuffer[2] = '1';
+            longBuffer[3] = hexDigits[c & 0xf];
             *escape = longBuffer;
             return 0;
         case '\x1b': // 1B escape - don't use \e for C because it's non-standard, but Scheme knows it
@@ -93,16 +93,12 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case '\x1d': /* 0x1d */ __attribute__ ((fallthrough));
         case '\x1e': /* 0x1e */ __attribute__ ((fallthrough));
         case '\x1f': /* 0x1f */
-            longBuffer[1] = '1';
-            longBuffer[2] = hexDigits[c & 0xf];
+            longBuffer[2] = '1';
+            longBuffer[3] = hexDigits[c & 0xf];
             *escape = longBuffer;
             return 0;
 
-        case '\x20': /* 0x20 */
-            longBuffer[1] = '2';
-            longBuffer[2] = '0';
-            *escape = longBuffer;
-            return 0;
+        case ' ': /* 0x20 */ return c;
         case '!': /* 0x21 */ return c;
         case '"':    // 22 double quote
             shortBuffer[1] = '"';
@@ -204,8 +200,8 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case '}': /* 0x7d */ __attribute__ ((fallthrough));
         case '~': /* 0x7e */ return c;
         case '\x7f': /* 0x7f */
-            longBuffer[1] = '7';
-            longBuffer[2] = 'F';
+            longBuffer[2] = '7';
+            longBuffer[3] = 'F';
             *escape = longBuffer;
             return 0;
         case (uint8)'\x80': /* 0x80 */ __attribute__ ((fallthrough));
@@ -224,8 +220,8 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case (uint8)'\x8d': /* 0x8d */ __attribute__ ((fallthrough));
         case (uint8)'\x8e': /* 0x8e */ __attribute__ ((fallthrough));
         case (uint8)'\x8f': /* 0x8f */
-            longBuffer[1] = '8';
-            longBuffer[2] = hexDigits[c & 0xf];
+            longBuffer[2] = '8';
+            longBuffer[3] = hexDigits[c & 0xf];
             *escape = longBuffer;
             return 0;
         case (uint8)'\x90': /* 0x90 */ __attribute__ ((fallthrough));
@@ -244,8 +240,8 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case (uint8)'\x9d': /* 0x9d */ __attribute__ ((fallthrough));
         case (uint8)'\x9e': /* 0x9e */ __attribute__ ((fallthrough));
         case (uint8)'\x9f': /* 0x9f */
-            longBuffer[1] = '9';
-            longBuffer[2] = hexDigits[c & 0xf];
+            longBuffer[2] = '9';
+            longBuffer[3] = hexDigits[c & 0xf];
             *escape = longBuffer;
             return 0;
         case (uint8)'\xa0': /* 0xa0 */ __attribute__ ((fallthrough));
@@ -264,8 +260,8 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case (uint8)'\xad': /* 0xad */ __attribute__ ((fallthrough));
         case (uint8)'\xae': /* 0xae */ __attribute__ ((fallthrough));
         case (uint8)'\xaf': /* 0xaf */
-            longBuffer[1] = 'A';
-            longBuffer[2] = hexDigits[c & 0xf];
+            longBuffer[2] = 'A';
+            longBuffer[3] = hexDigits[c & 0xf];
             *escape = longBuffer;
             return 0;
         case (uint8)'\xb0': /* 0xb0 */ __attribute__ ((fallthrough));
@@ -284,8 +280,8 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case (uint8)'\xbd': /* 0xbd */ __attribute__ ((fallthrough));
         case (uint8)'\xbe': /* 0xbe */ __attribute__ ((fallthrough));
         case (uint8)'\xbf': /* 0xbf */
-            longBuffer[1] = 'B';
-            longBuffer[2] = hexDigits[c & 0xf];
+            longBuffer[2] = 'B';
+            longBuffer[3] = hexDigits[c & 0xf];
             *escape = longBuffer;
             return 0;
         case (uint8)'\xc0': /* 0xc0 */ __attribute__ ((fallthrough));
@@ -304,8 +300,8 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case (uint8)'\xcd': /* 0xcd */ __attribute__ ((fallthrough));
         case (uint8)'\xce': /* 0xce */ __attribute__ ((fallthrough));
         case (uint8)'\xcf': /* 0xcf */
-            longBuffer[1] = 'C';
-            longBuffer[2] = hexDigits[c & 0xf];
+            longBuffer[2] = 'C';
+            longBuffer[3] = hexDigits[c & 0xf];
             *escape = longBuffer;
             return 0;
         case (uint8)'\xd0': /* 0xd0 */ __attribute__ ((fallthrough));
@@ -324,8 +320,8 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case (uint8)'\xdd': /* 0xdd */ __attribute__ ((fallthrough));
         case (uint8)'\xde': /* 0xde */ __attribute__ ((fallthrough));
         case (uint8)'\xdf': /* 0xdf */
-            longBuffer[1] = 'D';
-            longBuffer[2] = hexDigits[c & 0xf];
+            longBuffer[2] = 'D';
+            longBuffer[3] = hexDigits[c & 0xf];
             *escape = longBuffer;
             return 0;
         case (uint8)'\xe0': /* 0xe0 */ __attribute__ ((fallthrough));
@@ -344,8 +340,8 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case (uint8)'\xed': /* 0xed */ __attribute__ ((fallthrough));
         case (uint8)'\xee': /* 0xee */ __attribute__ ((fallthrough));
         case (uint8)'\xef': /* 0xef */
-            longBuffer[1] = 'E';
-            longBuffer[2] = hexDigits[c & 0xf];
+            longBuffer[2] = 'E';
+            longBuffer[3] = hexDigits[c & 0xf];
             *escape = longBuffer;
             return 0;
         case (uint8)'\xf0': /* 0xf0 */ __attribute__ ((fallthrough));
@@ -364,8 +360,8 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case (uint8)'\xfd': /* 0xfd */ __attribute__ ((fallthrough));
         case (uint8)'\xfe': /* 0xfe */ __attribute__ ((fallthrough));
         case (uint8)'\xff': /* 0xff */
-            longBuffer[1] = 'F';
-            longBuffer[2] = hexDigits[c & 0xf];
+            longBuffer[2] = 'F';
+            longBuffer[3] = hexDigits[c & 0xf];
             *escape = longBuffer;
             return 0;
     }
