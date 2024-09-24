@@ -83,7 +83,7 @@ uint8 HAS_1_OBJECT_FIELD(uint16 visit)
 extern int max_live;
 #endif
 
-void init_ram_heap ();
+void init_ram_heap (uint8 numConstants);
 
 void mark (obj temp);
 void sweep ();

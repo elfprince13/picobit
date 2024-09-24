@@ -314,7 +314,7 @@ int main ()
             }
         }
         os_SetFlag(APP, AUTOSCROLL);
-        if (rom_get (CODE_START+0) != 0xd7 ||
+        if ((rom_get (CODE_START+0) & 0xf8) != 0xd8 ||
             rom_get (CODE_START+1) != 0xfb) {
             // should never reach this code if above successfully filters
             printf ("*** The hex file was not compiled with PICOBIT\n");

@@ -29,6 +29,7 @@
 
 obj cont, env;
 obj arg1, arg2, arg3, arg4;
+obj symTable;
 obj a1, a2, a3;
 
 rom_addr pc, entry;
@@ -134,12 +135,22 @@ static uint8 bytecode, bytecode_hi4, bytecode_lo4;
 
 void interpreter ()
 {
-	pc = rom_get (CODE_START+2);
-	pc = (CODE_START + 4) + (pc << 2);
+	{
+		uint8 numConstants = 
+#ifdef CONFIG_LITTLE_ENDIAN
+			(rom_get (CODE_START+0) & 0x07)
+#else
+		    (rom_get (CODE_START+1) & 0x07)
+#endif
+			+ rom_get(CODE_START + 2);
+		glovars = rom_get (CODE_START+3); // number of global variables
+		// does not depend on pc
+		init_ram_heap (numConstants);
 
-	glovars = rom_get (CODE_START+3); // number of global variables
+		pc = (CODE_START + 4) + (((uint16)numConstants) << 2);
+	}
+	
 
-	init_ram_heap ();
 
 dispatch:
 	IF_TRACE(show_state (pc));

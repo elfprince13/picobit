@@ -12,7 +12,12 @@ int max_live = 0;
 
 IF_GC_TRACE(extern const char* _show_obj_bytes(obj o, char buffer[]); char vBuf[32]; char sBuf[32]; char tBuf[32]);
 
-void init_ram_heap ()
+void init_sym_table(uint8 numConstants)
+{
+	
+}
+
+void init_ram_heap (uint8 numConstants)
 {
 	uint8 i;
 	obj o = MAX_RAM_ENCODING;
@@ -377,6 +382,8 @@ void gc ()
 	mark (arg3);
 	IF_GC_TRACE(debug_printf("arg4: %s\n",_show_obj_bytes(arg4, tBuf)));
 	mark (arg4);
+	IF_GC_TRACE(debug_printf("symTable: %s\n",_show_obj_bytes(symTable, tBuf)));
+	mark (symTable);
 	IF_GC_TRACE(debug_printf("cont: %s\n",_show_obj_bytes(cont, tBuf)));
 	mark (cont);
 	IF_GC_TRACE(debug_printf("env: %s\n",_show_obj_bytes(env, tBuf)));

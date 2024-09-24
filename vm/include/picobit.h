@@ -36,6 +36,7 @@ extern "C" {
 
 extern obj cont, env;
 extern obj arg1, arg2, arg3, arg4;
+extern obj symTable;
 
 /* Interpreter variables. */
 
