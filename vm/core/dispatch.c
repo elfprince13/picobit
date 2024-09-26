@@ -136,13 +136,16 @@ static uint8 bytecode, bytecode_hi4, bytecode_lo4;
 void interpreter ()
 {
 	{
-		uint8 numConstants = 
+		uint8 numConstants = (256 *
 #ifdef CONFIG_LITTLE_ENDIAN
 			(rom_get (CODE_START+0) & 0x07)
 #else
 		    (rom_get (CODE_START+1) & 0x07)
 #endif
-			+ rom_get(CODE_START + 2);
+			) + rom_get(CODE_START + 2);
+		if ((numConstants + MIN_ROM_ENCODING - 1) >= MIN_RAM_ENCODING) {
+			ERROR("interpreter", "too many constants");
+		}
 		glovars = rom_get (CODE_START+3); // number of global variables
 		// does not depend on pc
 		init_ram_heap (numConstants);

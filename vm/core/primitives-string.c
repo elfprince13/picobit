@@ -28,7 +28,7 @@ PRIMITIVE(#%make-string, make_string, 2)
 	}
 
 	const obj header = alloc_vec_cell (1 + a1); // leave room to nul-terminate
-	a3  = _SYS_RAM_TO_VEC_OBJ(header + 1);;
+	a3  = _SYS_RAM_TO_VEC_OBJ(header + 1);
 	arg1 = alloc_ram_cell_init (COMPOSITE_FIELD0 | (a1 >> 8),
 	                            a1 & 0xff,
 	                            STRING_FIELD2 | (a3 >> 8),
