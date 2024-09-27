@@ -4,7 +4,6 @@
 #include <gc.h>
 #include <primitives.h>
 
-#include <limits.h>
 
 static obj free_list, free_vec_pointer;
 
@@ -14,106 +13,8 @@ int max_live = 0;
 
 IF_GC_TRACE(extern const char* _show_obj_bytes(obj o, char buffer[]); char vBuf[32]; char sBuf[32]; char tBuf[32]);
 
-inline unsigned int integer_log(unsigned int v) {
-	// integer log adapted from https://graphics.stanford.edu/~seander/bithacks.html#IntegerLog
-	// avoid branching
-    register uint16_t r; // result of log2(v) will go here
-	register uint16_t shift;
 
-#ifdef UINT_MAX
-#if UINT_MAX > 65535ULL
-#if (UINT_MAX > 4294967295ULL) && (UINT_MAX <= 18446744073709551615ULL)
-    r =     (v > 0xFFFFFFFF) << 5; v >>= r;
-    shift = (v > 0xFFFF) << 4; v >>= shift; r |= shift;
-#else
-#if (UINT_MAX > 65535ULL) || (UINT_MAX <= 4294967295ULL)
-    r =     (v > 0xFFFF) << 4; v >>= r;
-#else
-#define STRINGIFY(s) XSTRINGIFY(s)
-#define XSTRINGIFY(s) #s
-#error ("code must be extended for novel int sizes. UINT_MAX=" STRINGIFY(UINT_MAX))
-#endif
-#endif
-    shift = (v > 0xFF  ) << 3; v >>= shift; r |= shift;
-#else
-#if UINT_MAX == 65535ULL
-    r =     (v > 0xFF  ) << 3; v >>= r;
-#else
-#define STRINGIFY(s) XSTRINGIFY(s)
-#define XSTRINGIFY(s) #s
-#error ("code must be extended for novel int sizes. UINT_MAX=" STRINGIFY(UINT_MAX))
-#endif
-#endif
-#else
-#error "Must include <limits.h> header with UINT_MAX definition"
-#endif
-	shift = (v > 0xF   ) << 2; v >>= shift; r |= shift;
-	shift = (v > 0x3   ) << 1; v >>= shift; r |= shift;
-											r |= (v >> 1);
-    return r;
-}
-
-inline unsigned int npot(unsigned int v) {
-    unsigned int r = integer_log((v - 1));
-    return (unsigned int)1 << (unsigned int)(r + 1);
-}
-
-inline uint16 uhash_combine(uint16 hash, uint8 key) {
-	return (hash ^ key) + ((hash << 13) | (hash >> 3));
-}
-
-extern void prim_make_vector();
-extern void prim_vector_set();
-uint16 hash_string_buffer(obj str) {
-	uint16 end;
-	uint16 address;
-	uint8 inRam = 0;
-	if (RAM_STRING_P(str)) {
-		inRam = 1;
-		address = VEC_TO_RAM_BASE_ADDR(ram_get_cdr(str));
-		end = address + ram_get_car(str);
-	} else if (ROM_STRING_P(str)) {
-		address = VEC_TO_ROM_BASE_ADDR(rom_get_cdr(str));
-		end = address + rom_get_car(str);
-	} else {
-		TYPE_ERROR("hash_string_buffer", "string");
-	}
-	uint16 hash = 40507; // magic salt: prime AND close to 65536/phi for maximum superstition
-	if (inRam) {
-		for (; address != end; ++address) {
-			hash = uhash_combine(hash, ram_get(address));
-		}
-	} else {
-		for (; address != end; ++address) {
-			hash = uhash_combine(hash, rom_get(address));
-		}
-	}
-	return hash;
-}
-
-void init_sym_table(uint8 numConstants)
-{
-	// load factor will randomly be between 0.5 and 1
-	const uint16 numBuckets = npot(numConstants);
-	
-	arg1 = encode_int(numBuckets);
-	arg2 = OBJ_NULL;
-	prim_make_vector();
-	symTable = arg1;
-
-	const obj end = MIN_ROM_ENCODING + numConstants;
-	for (obj romObj = MIN_ROM_ENCODING; romObj != end; ++romObj) {
-		if (ROM_SYMBOL_P(romObj)) {
-			// hash and insert
-			arg1 = symTable;
-			arg2 = encode_int(hash_string_buffer(rom_get_car(romObj)) & ~((uint16_t)1 + ~numBuckets));
-			arg3 = romObj;
-			prim_vector_set();
-		}
-	}
-}
-
-void init_ram_heap (uint8 numConstants)
+void init_ram_heap ()
 {
 	uint8 i;
 	obj o = MAX_RAM_ENCODING;
@@ -147,8 +48,6 @@ void init_ram_heap (uint8 numConstants)
 #ifdef CONFIG_BIGNUM_LONG
 	bignum_gc_init();
 #endif
-
-	init_sym_table(numConstants);
 }
 
 _Static_assert(_ETT(0x3F, 0xFF) == 0x00, "number test failed");

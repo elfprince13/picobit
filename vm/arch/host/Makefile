@@ -18,5 +18,5 @@ endif
 
 arch-all: picobit-vm$(conf-suffix)
 
-picobit-vm$(conf-suffix): $(obj-y) .config
+picobit-vm$(conf-suffix): $(obj-y) .config $(core-h)
 	clang $(CFLAGS) -g -o $@ $(obj-y)

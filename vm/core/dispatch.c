@@ -148,7 +148,8 @@ void interpreter ()
 		}
 		glovars = rom_get (CODE_START+3); // number of global variables
 		// does not depend on pc
-		init_ram_heap (numConstants);
+		init_ram_heap ();
+		init_sym_table(numConstants);
 
 		pc = (CODE_START + 4) + (((uint16)numConstants) << 2);
 	}
