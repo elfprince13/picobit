@@ -130,6 +130,24 @@ PRIMITIVE(string-length, string_length, 1)
 	}
 }
 
+PRIMITIVE(#%string-compare, string_compare, 2) {
+	if (! (RAM_STRING_P(arg1) || ROM_STRING_P(arg1))) {
+		TYPE_ERROR("#%string-compare.0", "string");
+	}
+	if (! (RAM_STRING_P(arg2) || ROM_STRING_P(arg2))) {
+		TYPE_ERROR("#%string-compare.0", "string");
+	}
+	const uint8 * buf1 = (IN_RAM(arg1) 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(arg1))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(arg1))));
+	const uint8 * buf2 = (IN_RAM(arg2) 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(arg2))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(arg2))));
+
+	arg2 = OBJ_FALSE;
+	arg1 = encode_int(strcmp((const char *)buf1, (const char *)buf2));
+}
+
 
 PRIMITIVE(string->list, string2list, 1)
 {

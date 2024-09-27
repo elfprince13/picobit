@@ -1,8 +1,18 @@
 #include <symtable.h>
 #include <bignum.h>
+#include <gc.h>
+#include <primitives.h>
+#include <debug.h>
+
+uint16 symTableSize = 0;
+uint16 symTableBuckets = 0;
+uint16 symTableBucketMask = 0xffff;
 
 extern void prim_make_vector();
 extern void prim_vector_set();
+extern void prim_vector_ref();
+extern void prim_string_compare();
+
 uint16 hash_string_buffer(obj str) {
 	uint16 end;
 	uint16 address;
@@ -45,7 +55,56 @@ uint16 hash_string_buffer(obj str) {
 	return hash;
 }
 
-void init_sym_table(uint8 numConstants)
+// this method assumes that sym is a symbol and that str is the reference
+// obtained from its (car ...)
+obj unsafe_intern_symbol_given_string(const obj sym, const obj str) {
+    const uint16 truncHash = hash_string_buffer(str) & symTableBucketMask;
+    const obj bucketIndex = encode_int(truncHash);
+    arg1 = symTable;
+    arg2 = bucketIndex;
+    prim_vector_ref();
+
+    a2 = (a1 = arg1);
+    while (a2 != OBJ_NULL) {
+        const obj headSym = ram_get_car(a2);
+        const obj headStr = IN_RAM(headSym) ? ram_get_car(headSym) : rom_get_car(headSym);
+        arg1 = str;
+        arg2 = headStr;
+        prim_string_compare();
+        int cmpResult = (int16_t)decode_int(arg1);
+        if (cmpResult < 0) {
+            a1 = a2;
+            a2 = ram_get_cdr(a2);
+        } else if (cmpResult > 0) update_bucket_root: {
+            const obj newCell = cons(sym, a2);
+            symTableSize += 1;
+            if (a1 == a2) {
+                arg1 = symTable;
+                arg2 = bucketIndex;
+                arg3 = newCell;
+                prim_vector_set();
+            } else {
+                ram_set_cdr(a1, newCell);
+            }
+            return sym;
+        } else {
+            return headSym;
+        }
+    }
+    goto update_bucket_root;
+}
+
+obj intern_symbol(const obj sym) {
+    if (IN_RAM(sym) && RAM_SYMBOL_P(sym)) {
+        return unsafe_intern_symbol_given_string(sym, ram_get_car(sym));
+    } else if (IN_ROM(sym) && ROM_SYMBOL_P(sym)) {
+        return unsafe_intern_symbol_given_string(sym, rom_get_car(sym));
+    } else {
+        TYPE_ERROR("<intern_symbol>", "symbol");
+    }
+}
+
+void init_sym_table(const uint8 numConstants)
 {
 
 	const obj end = MIN_ROM_ENCODING + numConstants;
@@ -60,26 +119,23 @@ void init_sym_table(uint8 numConstants)
         numSymbols += (Symbol == typeTag);
     }
 	// load factor will randomly be between 0.5 and 1
-	const uint16 numBuckets = npot(numConstants);
+	symTableBuckets = npot(numSymbols);
+    symTableBucketMask = symTableBuckets - (uint16)1;
+    symTableSize = 0;
 	
-	arg1 = encode_int(numBuckets);
+	arg1 = encode_int(symTableBuckets);
 	arg2 = OBJ_NULL;
 	prim_make_vector();
 	symTable = arg1;
 
 	for (obj romObj = MIN_ROM_ENCODING; romObj != end; ++romObj) {
-		/*
-		const uint8 typeTag = ROM_EXTRACT_TYPE_TAG(romObj);
-		debug_printf("Checking rom obj %hu / %hu: has type tag %02hhx (scanning for symbol %02hhx)\n",
-					romObj - MIN_ROM_ENCODING + 1, numConstants,
-					typeTag, (uint8)Symbol);
-		*/
-		if (ROM_SYMBOL_P(romObj)) {
-			// hash and insert
-			arg1 = symTable;
-			arg2 = encode_int(hash_string_buffer(rom_get_car(romObj)) & ~((uint16_t)1 + ~numBuckets));
-			arg3 = romObj;
-			prim_vector_set();
+		const PicobitType typeTag = (PicobitType)(ROM_EXTRACT_TYPE_TAG(romObj));
+		
+		if (Symbol == typeTag) {
+			if (romObj != unsafe_intern_symbol_given_string(romObj, rom_get_car(romObj))) {
+                ERROR("<init_sym_table>", "duplicate constant symbol - compiler bug?");
+            }
+            IF_TRACE((show_obj(symTable), debug_printf("\n")));
 		}
 	}
 }
