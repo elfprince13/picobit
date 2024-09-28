@@ -52,6 +52,7 @@ uint16 hash_string_buffer(obj str) {
 			hash = uhash_combine(hash, rom_get(address));
 		}
 	}
+    IF_TRACE((debug_printf("#("), show_obj(str), debug_printf(") = %04hx\n", hash)));
 	return hash;
 }
 
@@ -76,6 +77,7 @@ obj unsafe_intern_symbol_given_string(const obj sym, const obj str) {
             a1 = a2;
             a2 = ram_get_cdr(a2);
         } else if (cmpResult > 0) update_bucket_root: {
+            arg1 = sym; // HACK! cons allocates so make sure GC can find sym.
             const obj newCell = cons(sym, a2);
             symTableSize += 1;
             if (a1 == a2) {
@@ -84,6 +86,7 @@ obj unsafe_intern_symbol_given_string(const obj sym, const obj str) {
                 arg3 = newCell;
                 prim_vector_set();
             } else {
+                arg1 = OBJ_FALSE; // clear extraneous references to sym
                 ram_set_cdr(a1, newCell);
             }
             return sym;
@@ -135,7 +138,43 @@ void init_sym_table(const uint8 numConstants)
 			if (romObj != unsafe_intern_symbol_given_string(romObj, rom_get_car(romObj))) {
                 ERROR("<init_sym_table>", "duplicate constant symbol - compiler bug?");
             }
-            IF_TRACE((show_obj(symTable), debug_printf("\n")));
+            IF_TRACE((debug_printf("symTable: "), show_obj(symTable), debug_printf("\n")));
 		}
 	}
+}
+
+void increase_sym_table_capacity() {
+    const uint16 oldBucketCount = symTableBuckets;
+	// load factor should now be ~0.5
+	symTableBuckets <<= 1;
+    symTableBucketMask = symTableBuckets - (uint16)1;
+    symTableSize = 0;
+
+    arg1 = encode_int(symTableBuckets);
+	arg2 = OBJ_NULL;
+	prim_make_vector();
+
+    // need to avoid this being collected while we rehash, 
+    // and intern_symbol doesn't touch arg4.
+    arg4 = symTable;
+    symTable = arg1;
+    IF_TRACE((debug_printf("old symTable: "), show_obj(arg4), debug_printf("\n")));
+    for (uint16 i = 0; i < oldBucketCount; ++i) {
+        arg1 = arg4;
+        arg2 = encode_int(i);
+        prim_vector_ref();
+        
+        for (obj bucketList = arg1;
+             bucketList != OBJ_NULL;
+             bucketList = ram_get_cdr(bucketList)) 
+        {
+            IF_TRACE((debug_printf("Walking bucket: %hu = ", bucketList), show_obj(bucketList), debug_printf(" ("), show_type(bucketList), debug_printf(") = "), show_obj_bytes(bucketList), debug_printf("\n")));
+            const obj head = ram_get_car(bucketList);
+            if (head != intern_symbol(head)) {
+                ERROR("<init_sym_table>", "duplicate constant symbol - compiler bug?");
+            }
+        }
+    }
+    IF_TRACE((debug_printf("new symTable: "), show_obj(symTable), debug_printf("\n")));
+    arg4 = OBJ_FALSE;
 }

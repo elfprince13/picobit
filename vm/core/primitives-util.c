@@ -1,7 +1,9 @@
 #include <picobit.h>
+#include <debug.h>
 #include <primitives.h>
 #include <gc.h>
 #include <string.h>
+#include <symtable.h>
 
 PRIMITIVE(eq?, eq_p, 2)
 {
@@ -69,7 +71,16 @@ PRIMITIVE(string->symbol, string2symbol, 1)
 	arg1 = alloc_ram_cell_init (COMPOSITE_FIELD0, 0, SYMBOL_FIELD2, 0);
 	ram_set_car(arg1, arg2);
 	//arg1 = arg2;
-	arg2 = OBJ_FALSE;
+	//arg2 = OBJ_FALSE;
+
+	// clobbers arg1 + arg2
+	const obj retVal = intern_symbol(arg1);
+	if (symTableSize > symTableBuckets) {
+		increase_sym_table_capacity();
+	} else {
+            IF_TRACE((debug_printf("symTable: "), show_obj(symTable), debug_printf("\n")));
+	}
+	arg1 = retVal;
 }
 
 PRIMITIVE(boolean?, boolean_p, 1)

@@ -131,10 +131,10 @@ PRIMITIVE(string-length, string_length, 1)
 }
 
 PRIMITIVE(#%string-compare, string_compare, 2) {
-	if (! (RAM_STRING_P(arg1) || ROM_STRING_P(arg1))) {
+	if (! ((IN_RAM(arg1) && RAM_STRING_P(arg1)) || (IN_ROM(arg1) && ROM_STRING_P(arg1)))) {
 		TYPE_ERROR("#%string-compare.0", "string");
 	}
-	if (! (RAM_STRING_P(arg2) || ROM_STRING_P(arg2))) {
+	if (! ((IN_RAM(arg2) && RAM_STRING_P(arg2)) || (IN_ROM(arg2) && ROM_STRING_P(arg2)))) {
 		TYPE_ERROR("#%string-compare.0", "string");
 	}
 	const uint8 * buf1 = (IN_RAM(arg1) 
@@ -145,7 +145,7 @@ PRIMITIVE(#%string-compare, string_compare, 2) {
 				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(arg2))));
 
 	arg2 = OBJ_FALSE;
-	arg1 = encode_int(strcmp((const char *)buf1, (const char *)buf2));
+	arg1 = encode_int((uint16)strcmp((const char *)buf1, (const char *)buf2));
 }
 
 

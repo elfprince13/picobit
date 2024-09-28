@@ -57,8 +57,12 @@ inline uint16 uhash_combine(uint16 hash, uint8 key) {
 
 uint16 hash_string_buffer(obj str);
 void init_sym_table(uint8 numConstants);
+/// clobbers arg1, arg2, arg3, arg4
+void increase_sym_table_capacity();
+/// clobbers arg1, arg2, arg3
 obj intern_symbol(obj sym);
 extern uint16 symTableSize;
+extern uint16 symTableBuckets;
 
 #ifdef __cplusplus
 }
