@@ -108,12 +108,8 @@
   (let ([csts (sort constants > #:key (lambda (x) (vector-ref (cdr x) 2)))])
     (for ([i   (in-naturals min-rom-encoding)]
           [cst (in-list csts)])
-      ;; Constants can use all the rom addresses up to 256 constants since
-      ;; their number is encoded in a byte at the beginning of the bytecode.
-      ;; The rest of the ROM encodings are used for the contents of these
-      ;; constants.
-      (when (or (> i min-ram-encoding) (> (- i min-rom-encoding) 256))
-        (compiler-error "too many constants"))
+      (when (>= i min-ram-encoding)
+        (compiler-error (~a "too many constants: ROM encoding " i " >= " min-ram-encoding " (min-ram-encoding)")))
       (vector-set! (cdr cst) 0 i))
     csts))
 
@@ -434,17 +430,19 @@
   ;; That way, the most often referred to constants and globals get
   ;; the lowest encodings. Low encodings mean that they can be
   ;; pushed/set with short instructions, reducing overall code size.
-  (let ((constants (sort-constants constants))
-        (globals   (sort-globals   globals)))
+  (let* ((constants (sort-constants constants))
+         (globals   (sort-globals   globals))
+         (num-constants (length constants)))
 
     (asm-begin! code-start big-endian?)
 
     ;; Header.
-    (asm-16 #xfbd7)
-    (asm-8 (length constants))
+    (asm-16 (+ #xfbd8 (quotient num-constants 256)))
+    (asm-8 (remainder num-constants 256))
     (asm-8 (length globals))
 
     ;; Constants.
+    ;(displayln (~a "encoding " num-constants " constants"))
     (for ([c (in-list constants)])
       (assemble-constant c constants))
 

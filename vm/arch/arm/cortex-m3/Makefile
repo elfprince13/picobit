@@ -17,5 +17,5 @@ arch-all: picobit.hex
 picobit.hex: picobit.elf
 	$(CROSS)objcopy -O ihex $^ $@
 
-picobit.elf: $(obj-y) .config
+picobit.elf: $(obj-y) .config $(core-h)
 	$(CROSS)cc $(CFLAGS) -o $@ $(obj-y)

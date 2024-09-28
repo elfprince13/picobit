@@ -28,7 +28,7 @@ PRIMITIVE(#%make-string, make_string, 2)
 	}
 
 	const obj header = alloc_vec_cell (1 + a1); // leave room to nul-terminate
-	a3  = _SYS_RAM_TO_VEC_OBJ(header + 1);;
+	a3  = _SYS_RAM_TO_VEC_OBJ(header + 1);
 	arg1 = alloc_ram_cell_init (COMPOSITE_FIELD0 | (a1 >> 8),
 	                            a1 & 0xff,
 	                            STRING_FIELD2 | (a3 >> 8),
@@ -128,6 +128,24 @@ PRIMITIVE(string-length, string_length, 1)
 	} else {
 		TYPE_ERROR("string-length.2", "string");
 	}
+}
+
+PRIMITIVE(#%string-compare, string_compare, 2) {
+	if (! ((IN_RAM(arg1) && RAM_STRING_P(arg1)) || (IN_ROM(arg1) && ROM_STRING_P(arg1)))) {
+		TYPE_ERROR("#%string-compare.0", "string");
+	}
+	if (! ((IN_RAM(arg2) && RAM_STRING_P(arg2)) || (IN_ROM(arg2) && ROM_STRING_P(arg2)))) {
+		TYPE_ERROR("#%string-compare.0", "string");
+	}
+	const uint8 * buf1 = (IN_RAM(arg1) 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(arg1))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(arg1))));
+	const uint8 * buf2 = (IN_RAM(arg2) 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(arg2))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(arg2))));
+
+	arg2 = OBJ_FALSE;
+	arg1 = encode_int((uint16)strcmp((const char *)buf1, (const char *)buf2));
 }
 
 

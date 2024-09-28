@@ -1,7 +1,9 @@
 #include <picobit.h>
+#include <debug.h>
 #include <primitives.h>
 #include <gc.h>
 #include <string.h>
+#include <symtable.h>
 
 PRIMITIVE(eq?, eq_p, 2)
 {
@@ -25,7 +27,7 @@ PRIMITIVE(symbol?, symbol_p, 1)
 	}
 }
 
-PRIMITIVE(symbol->string, symbol2string, 1)
+PRIMITIVE(symbol->immutable-string, symbol2immutablestring, 1)
 {
 	if (IN_RAM(arg1) && RAM_SYMBOL_P(arg1)) {
 		arg1 = ram_get_car(arg1);
@@ -36,10 +38,7 @@ PRIMITIVE(symbol->string, symbol2string, 1)
 	}
 }
 
-// TODO: this doesn't handle intern-ing yet!
-// we need object vectors to properly implement
-// the intern table
-PRIMITIVE(string->symbol, string2symbol, 1)
+PRIMITIVE(string->uninterned-symbol, string2uninternedsymbol, 1)
 {
 	const uint8 * srcPointer;
 	if (IN_RAM(arg1) && RAM_STRING_P(arg1)) {
@@ -68,8 +67,21 @@ PRIMITIVE(string->symbol, string2symbol, 1)
 
 	arg1 = alloc_ram_cell_init (COMPOSITE_FIELD0, 0, SYMBOL_FIELD2, 0);
 	ram_set_car(arg1, arg2);
-	//arg1 = arg2;
 	arg2 = OBJ_FALSE;
+}
+
+
+PRIMITIVE(string->symbol, string2symbol, 1)
+{
+	prim_string2uninternedsymbol();
+	// clobbers arg1 + arg2
+	const obj retVal = intern_symbol(arg1);
+	if (symTableSize > symTableBuckets) {
+		increase_sym_table_capacity();
+	} else {
+            IF_TRACE((debug_printf("symTable: "), show_obj(symTable), debug_printf("\n")));
+	}
+	arg1 = retVal;
 }
 
 PRIMITIVE(boolean?, boolean_p, 1)

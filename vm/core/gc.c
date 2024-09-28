@@ -4,6 +4,7 @@
 #include <gc.h>
 #include <primitives.h>
 
+
 static obj free_list, free_vec_pointer;
 
 #ifdef CONFIG_GC_STATISTICS
@@ -11,6 +12,7 @@ int max_live = 0;
 #endif
 
 IF_GC_TRACE(extern const char* _show_obj_bytes(obj o, char buffer[]); char vBuf[32]; char sBuf[32]; char tBuf[32]);
+
 
 void init_ram_heap ()
 {
@@ -377,6 +379,8 @@ void gc ()
 	mark (arg3);
 	IF_GC_TRACE(debug_printf("arg4: %s\n",_show_obj_bytes(arg4, tBuf)));
 	mark (arg4);
+	IF_GC_TRACE(debug_printf("symTable: %s\n",_show_obj_bytes(symTable, tBuf)));
+	mark (symTable);
 	IF_GC_TRACE(debug_printf("cont: %s\n",_show_obj_bytes(cont, tBuf)));
 	mark (cont);
 	IF_GC_TRACE(debug_printf("env: %s\n",_show_obj_bytes(env, tBuf)));

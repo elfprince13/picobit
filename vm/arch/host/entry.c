@@ -189,11 +189,11 @@ int main (int argc, char *argv[])
 		printf ("*** Could not read hex file \"%s\"\n", argv[1]);
 	} else {
 #ifdef CONFIG_LITTLE_ENDIAN
-		if (rom_get (CODE_START+0) != 0xd7 ||
+		if ((rom_get (CODE_START+0) & 0xf8) != 0xd8 ||
 		    rom_get (CODE_START+1) != 0xfb) {
 #else
 		if (rom_get (CODE_START+0) != 0xfb ||
-		    rom_get (CODE_START+1) != 0xd7) {
+		    (rom_get (CODE_START+1) & 0xf8) != 0xd8) {
 #endif
 			printf ("*** The hex file was not compiled with PICOBIT\n");
 		} else if (argc == 2) {

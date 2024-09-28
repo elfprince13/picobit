@@ -35,10 +35,10 @@ arch-all: rustle.8ek
 llvm-c-y = $(addsuffix .bc,$(filter %.c,$(obj-y)))
 llvm-cpp-y = $(addsuffix .bc,$(filter %.cpp,$(obj-y)))
 
-$(llvm-c-y): %.c.bc: %.c .config arch/ez80/include/memory.h arch/ez80/include/exit-codes.h arch/ez80/include/types.h arch/ez80/include/cemu-debug.h include/debug.h
+$(llvm-c-y): %.c.bc: %.c .config arch/ez80/include/memory.h arch/ez80/include/exit-codes.h arch/ez80/include/types.h arch/ez80/include/cemu-debug.h $(core-h)
 	$(CROSS)clang $(CFLAGS) $< -o $@
 
-$(llvm-cpp-y): %.cpp.bc: %.cpp .config arch/ez80/include/menu.h arch/ez80/include/exit-codes.h arch/ez80/include/memory.h arch/ez80/include/cemu-debug.h include/debug.h
+$(llvm-cpp-y): %.cpp.bc: %.cpp .config arch/ez80/include/menu.h arch/ez80/include/exit-codes.h arch/ez80/include/memory.h arch/ez80/include/cemu-debug.h $(core-h)
 	$(CROSS)clang $(CXXFLAGS) $< -o $@
 
 picobit-vm.bc: $(llvm-c-y) $(llvm-cpp-y) .config

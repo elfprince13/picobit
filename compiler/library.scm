@@ -184,6 +184,11 @@
                   result))))
         (copy 0 start)))))
 
+(define symbol->string
+  (lambda (symbol)
+    (let ([str (symbol->immutable-string symbol)])
+      (substring str 0 (string-length str)))))
+
 (define map
   (lambda (f lst)
     (if (pair? lst)
