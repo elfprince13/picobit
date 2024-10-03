@@ -201,7 +201,7 @@ PRIMITIVE(#%getchar, getchar, 0)
 	arg1 = encode_int (getchar ());
 }
 
-PRIMITIVE(#%putchar, putchar, 1)
+PRIMITIVE_UNSPEC(#%putchar, putchar, 1)
 {
 	a1 = decode_int(arg1);
 	if (a1 > 255) {

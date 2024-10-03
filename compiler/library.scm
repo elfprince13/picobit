@@ -1,3 +1,5 @@
+(define null '())
+
 (define +
   (lambda (x . rest)
     (if (pair? rest)
@@ -408,3 +410,211 @@
                (u8vector-copy! source (+ source-start 1)
                                target (+ target-start 1)
                                (- n 1))))))
+
+(define (char-whitespace? c)
+  (or (and (>= c #\tab) (<= c #\return)) (eq? c #\space)))
+
+(define (char-numeric? c)
+  (and (>= c #\u30) (<= c #\u39)))
+
+(define (char-alphabetic? c)
+  (or (and (>= c #\A) (<= c #\Z)) (and (>= c #\a) (<= c #\z))))
+
+(define (char-extended-alphabetic? c)
+  (or (char-alphabetic? c)
+      (eq? c #\u5B) ;; Greek theta
+      (and (>= c #\u8A) (<= c #\uB5)) ;; accented
+      (and (>= c #\uBB) (<= c #\uC0)) ;; Greek alpha - epsilon
+      (and (>= c #\uC2) (<= c #\uCC)) ;; Greek lambda - omega + x mean / y mean
+      (and (>= c #\uD7) (<= c #\uDD)) ;; imaginary i - finance N
+      (eq? c #\uF4) ;; sharp s
+      ))
+
+(define (error message)
+  (print message)
+  (#%halt))
+
+(define #%make-reader
+  (let*
+      ([eof-token '(-1)]
+       [eof-char? (lambda (char) (< char 0))]
+       [eof-token? (lambda (tok) (eq? tok eof-token))]
+       [left-paren-token '(#\()]
+       [right-paren-token '(#\))]
+       [left-bracket-token '(#\uC1)] ; ti-ascii displaces [ for theta
+       [right-bracket-token '(#\])]
+       [left-opener?
+        (lambda (tok)
+          (or (eq? tok left-paren-token)
+              (eq? tok left-bracket-token)))]
+       [right-opener?
+        (lambda (tok)
+          (or (eq? tok right-paren-token)
+              (eq? tok right-bracket-token)))]
+       [matched-openers?
+        (lambda (left-tok right-tok)
+          (or (and (eq? left-tok left-paren-token)
+                   (eq? right-tok right-paren-token))
+              (and (eq? left-tok left-bracket-token)
+                   (eq? right-tok right-bracket-token))))]
+       [mismatched-openers?
+        (lambda (left-tok right-tok)
+          (or (and (eq? left-tok left-paren-token)
+                   (eq? right-tok right-bracket-token))
+              (and (eq? left-tok left-bracket-token)
+                   (eq? right-tok right-paren-token))))]
+       [special-initial?
+        (lambda (c)
+          (or
+           (eq? c #\!)
+           (eq? c #\uF2) ; ti-ascii displaces $ for fourth power
+           (eq? c #\%)
+           (eq? c #\&)
+           (eq? c #\*)
+           (eq? c #\/)
+           (eq? c #\:)
+           (and (>= c #\<) (<= c #\?))
+           (and (>= c #\u17) (<= c #\u19)) ; lte, neq, gte
+           (eq? c #\^)
+           (eq? c #\_)
+           (eq? c #\~)
+           ))]
+       [initial?
+        (lambda (c)
+          (or char-extended-alphabetic? c) (special-initial? c))]
+       [special-subsequent?
+        (lambda (c)
+          (or (eq? c #\+) (eq? c #\-) (eq? c #\.) (eq? c #\@)))]
+       [subsequent?
+        (lambda (c)
+          (or (initial? c) (char-numeric? c) (special-subsequent? c)))]
+       [peculiar-identifier?
+        (lambda (c)
+          (or
+           (eq? c #\+)
+           (eq? c #\-)
+           (eq? c #\uCE) ; ellipsis
+           ))]
+       [convert-digit
+        (lambda (d) (- d #\u30))])
+    ;; split the bindings because
+    ;; vm only supports up to 16 arguments / call
+      
+    (lambda (read-char)
+      (lambda ()
+        (letrec
+            ([read-identifier
+              (lambda (head)
+                (let read-remainder
+                  ([tail head][size 1])
+                  (let ([next-char (read-char)])
+                    (cond
+                      [(char-whitespace? next-char)
+                       ; precalculate length to avoid
+                       ; extra pass over data
+                       (let ([buffer (make-string size)])
+                         (let loop ([data head][i 0])
+                           (if (null? data)
+                               (symbol->string buffer)
+                               (begin
+                                 (string-set! buffer i (car data))
+                                 (loop (cdr data) (+ 1 i))))))]
+                      [(subsequent? next-char)
+                       (let ([new-tail (cons next-char null)])
+                         (set-cdr! tail new-tail)
+                         (read-remainder new-tail (+ 1 size)))]
+                      [else (error "invalid identifier character!" )]))))]
+             [read-number
+              (lambda (n)
+                (let ([next-char (read-char)])
+                  (cond
+                    [(char-whitespace? next-char) n]
+                    [(char-numeric? next-char)
+                     (read-number (+ (* 10 n) (convert-digit next-char)))]
+                    [else (error "invalid digit character!")])))]
+             [read-token
+              (lambda ()
+                (let ([first-char (read-char)])
+                  (cond ;; if first-char is a space or line break, just skip it
+                    ;; and loop to try again by calling self recursively
+                    [(char-whitespace? first-char)
+                     (read-token)]
+                    ;; else if it's a left paren char, return the special
+                    ;; object that we use to represent left parenthesis tokens.
+                    [(eq? first-char #\( )
+                     left-paren-token]
+                    [(eq? first-char #\uC1 )
+                     left-bracket-token]
+                    ;; likewise for right parens
+                    [(eq? first-char #\) )
+                     right-paren-token]
+                    [(eq? first-char #\) )
+                     right-bracket-token]
+                    ;; else if it's a letter, we assume it's the first char
+                    ;; of a symbol and call read-identifier to read the rest of
+                    ;; of the chars in the identifier and return a symbol object
+                    [(initial? first-char)
+                     (read-identifier (cons first-char null))]
+                    ;; else if it's a digit, we assume it's the first digit
+                    ;; of a number and call read-number to read the rest of
+                    ;; the number and return a number object
+                    [(char-numeric? first-char)
+                     (read-number (convert-digit first-char))]
+                    [(peculiar-identifier? first-char)
+                     (let ([next-char (read-char)])
+                       (cond
+                         [(char-whitespace? next-char)
+                          (string->symbol (make-string 1 first-char))]
+                         [(char-numeric? next-char)
+                          (*
+                           (cond
+                             [(eq? first-char #\+) 1]
+                             [(eq? first-char #\-) -1]
+                             [else (error "illegal numeric sign character")])
+                           (read-number (convert-digit next-char)))]
+                         [else (error "illegal lexical syntax")]))]
+                    ; end of file / data stream
+                    [(eof-char? first-char) eof-token]
+                    ;; else it's something this little reader can't handle,
+                    ;; so signal an error
+                    [else
+                     (error "illegal lexical syntax")])))]
+             [read-list
+              ; avoid a lot of code duplication at the cost of one extra
+              ; temp allocation per list read
+              (lambda (opener head-minus-1)
+                (let read-remainder ([tail head-minus-1]
+                                     [next-token (read-token)]
+                                     [dot-context #f])
+                  (cond
+                    [(right-opener? next-token)
+                     (if (matched-openers? opener next-token)
+                         (cdr head-minus-1)
+                         (error "Mismatched parens and braces"))]
+                    [(eof-token? next-token) (error "Unexpected end of file")]
+                    [else
+                     (let
+                         ([new-tail
+                           (cons
+                            (if (left-opener? next-token)
+                                (read-list next-token (cons #f null))
+                                next-token) null)])
+                       (set-cdr! tail new-tail)
+                       (read-remainder new-tail (read-token) dot-context))])))])
+          (let ([token (read-token)])
+            (cond
+              [(left-opener? token)
+               (read-list token)]
+              [else token])))))))
+
+(define (read-string str)
+  ((#%make-reader
+   (let ([n (string-length str)]
+         [i 0])
+     (lambda ()
+       (if (< i n)
+           (let ([result (string-ref str i)])
+             (set! i (+ i 1))
+             result)
+           -1))))))
+       

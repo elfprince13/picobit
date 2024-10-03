@@ -323,7 +323,7 @@ PRIMITIVE(#%getchar-wait, getchar_wait, 2)
 #endif
 }
 
-PRIMITIVE(#%putchar, putchar, 2)
+PRIMITIVE_UNSPEC(#%putchar, putchar, 2)
 {
 	decode_2_int_args ();
 
