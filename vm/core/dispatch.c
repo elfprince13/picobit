@@ -187,7 +187,8 @@ dispatch:
 
 		/*************************************************************************/
 	case PUSH_STACK1 :
-
+		// TODO this is painfully slow :sob:
+		// switch to a vector-based stack that grows from the end of vector space
 		IF_TRACE(debug_printf("  (push-stack %d)\n", bytecode_lo4));
 
 		arg1 = env;
@@ -205,6 +206,8 @@ dispatch:
 
 		/*************************************************************************/
 	case PUSH_STACK2 :
+		// TODO this is painfully slow :sob:
+		// switch to a vector-based stack that grows from the end of vector space
 
 		IF_TRACE(debug_printf("  (push-stack %d)\n", bytecode_lo4+16));
 
@@ -458,9 +461,27 @@ dispatch:
 			break;
 		case 12:
 			break;
-		case 13:
-			break;
 #endif
+		case 13: // push_stack [long]
+			// TODO this is painfully slow :sob:
+			// switch to a vector-based stack that grows from the end of vector space
+			FETCH_NEXT_BYTECODE();
+
+			IF_TRACE(debug_printf("  (push-stack [long] %d)\n", bytecode));
+
+			arg1 = env;
+
+			while (bytecode != 0) {
+				arg1 = ram_get_cdr (arg1);
+				bytecode--;
+			}
+
+			arg1 = ram_get_car (arg1);
+
+			push_arg1();
+
+
+			break;
 		case 14: // push_global [long]
 			FETCH_NEXT_BYTECODE();
 

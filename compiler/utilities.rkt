@@ -18,6 +18,19 @@
     (newline)
     (exit 1)))
 
+(define (compiler-warning msg . others)
+  (parameterize ([current-output-port (current-error-port)])
+    (printf "*** PICOBIT WARNING -- ~a" msg)
+    (for ([x (in-list others)])
+      (printf " ~a"
+              (if (identifier? x)
+                  (format "~a at ~a:~a"
+                          (syntax->datum x)
+                          (syntax-line   x)
+                          (syntax-column x))
+                  (format "~s" x))))
+    (newline)))
+
 (define (self-eval? expr)
   (or (number?   expr)
       (char?     expr)

@@ -195,7 +195,12 @@
 
 (define (push-stack n)
   (if (> n 31) ; 3 bit opcode, 5 bits operand
-      (compiler-error "stack is too deep")
+      (if (> n 255) ; 8 bit opcode, 8 bit operand
+          (compiler-error "stack is too deep")
+          (begin
+            (compiler-warning "stack is very deep - in a hot codepath this may cause performance issues")
+            (asm-8 #xbd)
+            (asm-8 n)))
       (asm-8 (+ #x20 n))))
 
 (define (push-global n)
