@@ -500,10 +500,17 @@
     ;; split the bindings because
     ;; vm only supports up to 16 arguments / call
       
-    (lambda (read-char)
+    (lambda (#%read-char)
       (lambda ()
         (letrec
-            ([char-ends-token?
+            ([peek-char (#%read-char)]
+             [read-char
+              (lambda ()
+                (let ([result peek-char])
+                  (if (not (eof-char? result))
+                    (set! peek-char (#%read-char)))
+                  result))]
+             [char-ends-token?
               (lambda (c)
                 (or (char-whitespace? c)
                     (eq? c #\()
@@ -514,31 +521,32 @@
               (lambda (head)
                 (let read-remainder
                   ([tail head][size 1])
-                  (let ([next-char (read-char)])
-                    (cond
-                      [(char-ends-token? next-char)
-                       ; precalculate length to avoid
-                       ; extra pass over data
-                       (let ([buffer (make-string size)])
-                         (let loop ([data head][i 0])
-                           (if (null? data)
-                               (string->symbol buffer)
-                               (begin
-                                 (string-set! buffer i (car data))
-                                 (loop (cdr data) (+ 1 i))))))]
-                      [(subsequent? next-char)
-                       (let ([new-tail (cons next-char null)])
-                         (set-cdr! tail new-tail)
-                         (read-remainder new-tail (+ 1 size)))]
-                      [else (error "invalid identifier character!" )]))))]
+                  (cond
+                    [(char-ends-token? peek-char)
+                     ; precalculate length to avoid
+                     ; extra pass over data
+                     (let ([buffer (make-string size)])
+                       (let loop ([data head][i 0])
+                         (if (null? data)
+                             (string->symbol buffer)
+                             (begin
+                               (string-set! buffer i (car data))
+                               (loop (cdr data) (+ 1 i))))))]
+                    [(subsequent? peek-char)
+                     (let ([new-tail (cons (read-char) null)])
+                       (set-cdr! tail new-tail)
+                       (read-remainder new-tail (+ 1 size)))]
+                    [else (error (string-append "invalid identifier character:"
+                                                (make-string 1 peek-char)))])))]
              [read-number
               (lambda (n)
-                (let ([next-char (read-char)])
-                  (cond
-                    [(char-ends-token? next-char) n]
-                    [(char-numeric? next-char)
-                     (read-number (+ (* 10 n) (convert-digit next-char)))]
-                    [else (error (string-append "invalid digit character: " (make-string 1 next-char)))])))]
+                ;(displayln "reading number")
+                (cond
+                  [(char-ends-token? peek-char) n]
+                  [(char-numeric? peek-char)
+                   (read-number (+ (* 10 n) (convert-digit (read-char))))]
+                  [else (error (string-append "invalid digit character: "
+                                              (make-string 1 peek-char)))]))]
              [read-token
               (lambda ()
                 (let ([first-char (read-char)])
@@ -568,28 +576,28 @@
                     [(char-numeric? first-char)
                      (read-number (convert-digit first-char))]
                     [(peculiar-identifier? first-char)
-                     (let ([next-char (read-char)])
-                       (cond
-                         [(char-ends-token? next-char)
-                          (string->symbol (make-string 1 first-char))]
-                         [(char-numeric? next-char)
-                          (*
-                           (cond
-                             [(eq? first-char #\+) 1]
-                             [(eq? first-char #\-) -1]
-                             [else (error "illegal numeric sign character")])
-                           (read-number (convert-digit next-char)))]
-                         [else
-                          (error
-                           (string-append
-                            (string-append "illegal lexical syntax: " (make-string 1 first-char))
-                            (string-append " followed by " (make-string 1 next-char))))]))]
+                     (cond
+                       [(char-ends-token? peek-char)
+                        (string->symbol (make-string 1 first-char))]
+                       [(char-numeric? peek-char)
+                        (*
+                         (cond
+                           [(eq? first-char #\+) 1]
+                           [(eq? first-char #\-) -1]
+                           [else (error "illegal numeric sign character")])
+                         (read-number (convert-digit (read-char))))]
+                       [else
+                        (error
+                         (string-append
+                          (string-append "illegal lexical syntax: " (make-string 1 first-char))
+                          (string-append " followed by " (make-string 1 peek-char))))])]
                     ; end of file / data stream
                     [(eof-char? first-char) eof-token]
                     ;; else it's something this little reader can't handle,
                     ;; so signal an error
                     [else
-                     (error (string-append "illegal lexical syntax: " (make-string 1 first-char)))])))]
+                     (error (string-append "illegal lexical syntax: "
+                                           (make-string 1 first-char)))])))]
              [read-list
               ; avoid a lot of code duplication at the cost of one extra
               ; temp allocation per list read
