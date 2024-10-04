@@ -121,6 +121,10 @@ void init_sym_table(const uint8 numConstants)
 
         numSymbols += (Symbol == typeTag);
     }
+    if (0 == numSymbols) {
+        // very slight memory overhead to decrease downstream complexity
+        numSymbols = 1;
+    }
 	// load factor will randomly be between 0.5 and 1
 	symTableBuckets = npot(numSymbols);
     symTableBucketMask = symTableBuckets - (uint16)1;

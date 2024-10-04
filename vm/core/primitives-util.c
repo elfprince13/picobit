@@ -34,7 +34,7 @@ PRIMITIVE(symbol->immutable-string, symbol2immutablestring, 1)
 	} else if (IN_ROM(arg1) && ROM_SYMBOL_P(arg1)) {
 		arg1 = rom_get_car(arg1);
 	} else {
-		type_error("symbol->string", "symbol");
+		type_error("symbol->immutable-string", "symbol");
 	}
 }
 
@@ -48,7 +48,7 @@ PRIMITIVE(string->uninterned-symbol, string2uninternedsymbol, 1)
 		a1 = rom_get_car(arg1);
 		srcPointer = rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(arg1));
 	} else {
-		type_error("symbol->string", "symbol");
+		type_error("string->uninterned-symbol", "symbol");
 	}
 
 	const obj header = alloc_vec_cell (1 + a1); // leave room to nul-terminate
