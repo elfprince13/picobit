@@ -77,7 +77,26 @@ loop:
 					printf (")");
 				}
 			} else if ((in_ram && RAM_SYMBOL_P(o)) || (!in_ram && ROM_SYMBOL_P(o))) {
-				printf ("#<symbol>");
+				o = in_ram ? ram_get_car(o) : rom_get_car(o);
+				in_ram = IN_RAM(o);
+				const uint8 * charIt = (in_ram 
+				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) 
+				  : (rom_mem + VEC_TO_ROM_BASE_ADDR(rom_get_cdr(o))));
+				putchar('\'');
+				for (const uint8 * const end = charIt + (in_ram ? ram_get_car(o) : rom_get_car(o));
+				     charIt != end;
+					 ++charIt)
+				{
+					uint8 c = *charIt;
+					uint8* escaped;
+					if (0 == schemeEscapeChar(c, &escaped, 1)) {
+						while((c = *(escaped++))) {
+							putchar(c);
+						}
+					} else {
+						putchar(c);
+					}
+				}
 			} else if ((in_ram && RAM_STRING_P(o)) || (!in_ram && ROM_STRING_P(o))) {
 				const uint8 * charIt = (in_ram 
 				  ? (ram_mem + VEC_TO_RAM_BASE_ADDR(ram_get_cdr(o))) 
@@ -89,7 +108,7 @@ loop:
 				{
 					uint8 c = *charIt;
 					uint8* escaped;
-					if (0 == schemeEscapeChar(c, &escaped)) {
+					if (0 == schemeEscapeChar(c, &escaped, 0)) {
 						while((c = *(escaped++))) {
 							putchar(c);
 						}

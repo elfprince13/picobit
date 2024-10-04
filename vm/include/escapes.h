@@ -6,7 +6,7 @@
 extern "C" {
 #endif
 
-inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
+inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape, const uint8 escapeSingleQuote) {
     static const uint8 hexDigits[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
     static uint8 shortBuffer[] = {'\\', '\0', '\0'};
     static uint8 longBuffer[] = {'\\', 'x', '\0', '\0', '\0'};
@@ -107,8 +107,14 @@ inline static uint8 schemeEscapeChar(const uint8 c, uint8** escape) {
         case '#': /* 0x23 */ __attribute__ ((fallthrough));
         case '$': /* 0x24 */ __attribute__ ((fallthrough));
         case '%': /* 0x25 */ __attribute__ ((fallthrough));
-        case '&': /* 0x26 */ __attribute__ ((fallthrough));
-        case '\'': /*0x27 */ __attribute__ ((fallthrough));
+        case '&': /* 0x26 */
+            return c;
+        case '\'': /*0x27 */ 
+            if (escapeSingleQuote) {
+                shortBuffer[1] = '\'';
+                *escape = shortBuffer;
+                return 0;
+            } else __attribute__ ((fallthrough));
         case '(': /* 0x28 */ __attribute__ ((fallthrough));
         case ')': /* 0x29 */ __attribute__ ((fallthrough));
         case '*': /* 0x2a */ __attribute__ ((fallthrough));
