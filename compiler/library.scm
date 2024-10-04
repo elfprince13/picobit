@@ -481,7 +481,7 @@
            ))]
        [initial?
         (lambda (c)
-          (or char-extended-alphabetic? c) (special-initial? c))]
+          (or (char-extended-alphabetic? c) (special-initial? c)))]
        [special-subsequent?
         (lambda (c)
           (or (eq? c #\+) (eq? c #\-) (eq? c #\.) (eq? c #\@)))]
@@ -503,19 +503,26 @@
     (lambda (read-char)
       (lambda ()
         (letrec
-            ([read-identifier
+            ([char-ends-token?
+              (lambda (c)
+                (or (char-whitespace? c)
+                    (eq? c #\()
+                    (eq? c #\uC1)
+                    (eq? c #\))
+                    (eq? c #\])))]
+             [read-identifier
               (lambda (head)
                 (let read-remainder
                   ([tail head][size 1])
                   (let ([next-char (read-char)])
                     (cond
-                      [(char-whitespace? next-char)
+                      [(char-ends-token? next-char)
                        ; precalculate length to avoid
                        ; extra pass over data
                        (let ([buffer (make-string size)])
                          (let loop ([data head][i 0])
                            (if (null? data)
-                               (symbol->string buffer)
+                               (string->symbol buffer)
                                (begin
                                  (string-set! buffer i (car data))
                                  (loop (cdr data) (+ 1 i))))))]
@@ -528,10 +535,10 @@
               (lambda (n)
                 (let ([next-char (read-char)])
                   (cond
-                    [(char-whitespace? next-char) n]
+                    [(char-ends-token? next-char) n]
                     [(char-numeric? next-char)
                      (read-number (+ (* 10 n) (convert-digit next-char)))]
-                    [else (error "invalid digit character!")])))]
+                    [else (error (string-append "invalid digit character: " (make-string 1 next-char)))])))]
              [read-token
               (lambda ()
                 (let ([first-char (read-char)])
@@ -548,7 +555,7 @@
                     ;; likewise for right parens
                     [(eq? first-char #\) )
                      right-paren-token]
-                    [(eq? first-char #\) )
+                    [(eq? first-char #\] )
                      right-bracket-token]
                     ;; else if it's a letter, we assume it's the first char
                     ;; of a symbol and call read-identifier to read the rest of
@@ -563,7 +570,7 @@
                     [(peculiar-identifier? first-char)
                      (let ([next-char (read-char)])
                        (cond
-                         [(char-whitespace? next-char)
+                         [(char-ends-token? next-char)
                           (string->symbol (make-string 1 first-char))]
                          [(char-numeric? next-char)
                           (*
@@ -572,13 +579,17 @@
                              [(eq? first-char #\-) -1]
                              [else (error "illegal numeric sign character")])
                            (read-number (convert-digit next-char)))]
-                         [else (error "illegal lexical syntax")]))]
+                         [else
+                          (error
+                           (string-append
+                            (string-append "illegal lexical syntax: " (make-string 1 first-char))
+                            (string-append " followed by " (make-string 1 next-char))))]))]
                     ; end of file / data stream
                     [(eof-char? first-char) eof-token]
                     ;; else it's something this little reader can't handle,
                     ;; so signal an error
                     [else
-                     (error "illegal lexical syntax")])))]
+                     (error (string-append "illegal lexical syntax: " (make-string 1 first-char)))])))]
              [read-list
               ; avoid a lot of code duplication at the cost of one extra
               ; temp allocation per list read
@@ -590,7 +601,10 @@
                     [(right-opener? next-token)
                      (if (matched-openers? opener next-token)
                          (cdr head-minus-1)
-                         (error "Mismatched parens and braces"))]
+                         (error
+                          (string-append 
+                          (string-append "Mismatched parens and braces: " (make-string 1 (car opener)))
+                          (string-append " and " (make-string 1 (car next-token))))))]
                     [(eof-token? next-token) (error "Unexpected end of file")]
                     [else
                      (let
@@ -604,7 +618,7 @@
           (let ([token (read-token)])
             (cond
               [(left-opener? token)
-               (read-list token)]
+               (read-list token (cons #f null))]
               [else token])))))))
 
 (define (read-string str)
