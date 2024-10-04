@@ -61,6 +61,7 @@ uint16 hash_string_buffer(obj str) {
 obj unsafe_intern_symbol_given_string(const obj sym, const obj str) {
     const uint16 truncHash = hash_string_buffer(str) & symTableBucketMask;
     const obj bucketIndex = encode_int(truncHash);
+    IF_TRACE((debug_printf("#("), show_obj(str) ,debug_printf(") = %04hx & %04hx = %04hx, into table of length %04hx\n",hash_string_buffer(str),symTableBucketMask,truncHash,ram_get_car(symTable))));
     arg1 = symTable;
     arg2 = bucketIndex;
     prim_vector_ref();
