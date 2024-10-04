@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-inline unsigned int integer_log(unsigned int v) {
+inline static unsigned int integer_log(unsigned int v) {
 	// integer log adapted from https://graphics.stanford.edu/~seander/bithacks.html#IntegerLog
 	// avoid branching
     register uint16_t r; // result of log2(v) will go here
@@ -46,12 +46,12 @@ inline unsigned int integer_log(unsigned int v) {
     return r;
 }
 
-inline unsigned int npot(unsigned int v) {
+inline static unsigned int npot(unsigned int v) {
     unsigned int r = integer_log((v - 1));
     return (unsigned int)1 << (unsigned int)(r + 1);
 }
 
-inline uint16 uhash_combine(uint16 hash, uint8 key) {
+inline static uint16 uhash_combine(uint16 hash, uint8 key) {
 	return (uint16)((hash ^ key) + ((hash << 13) | (hash >> 3)));
 }
 
