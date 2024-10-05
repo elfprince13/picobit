@@ -502,7 +502,6 @@
       
     (lambda (#%read-char)
       (lambda ()
-        ;(displayln "inside reader")
         (letrec
             ([peek-char (#%read-char)]
              [read-char
@@ -520,7 +519,6 @@
                     (eq? c #\])))]
              [read-identifier
               (lambda (head)
-                ;(displayln "reading identifier")
                 (let read-remainder
                   ([tail head][size 1])
                   (cond
@@ -551,7 +549,6 @@
                                               (make-string 1 peek-char)))]))]
              [read-token
               (lambda ()
-                ;(displayln "reading token")
                 (let ([first-char (read-char)])
                   (cond ;; if first-char is a space or line break, just skip it
                     ;; and loop to try again by calling self recursively
@@ -605,21 +602,13 @@
               ; avoid a lot of code duplication at the cost of one extra
               ; temp allocation per list read
               (lambda (opener head-minus-1)
-                ;(display "reading list (outer) ") (print opener) (newline)
                 (let read-remainder ([tail head-minus-1]
                                      [next-token (read-token)]
                                      [dot-context #f])
-                  ;(displayln "reading list (inner)")
-                  ;(display "\ttail:        ") (print tail) (newline)
-                  ;(display "\tnext-token:  ") (print next-token) (newline)
-                  ;(display "\tdot-context: ") (print dot-context) (newline)
                   (cond
                     [(right-opener? next-token)
                      (if (matched-openers? opener next-token)
-                         (begin
-                           ;(display "returning list: ")
-                           ;(print (cdr head-minus-1)) (newline)
-                           (cdr head-minus-1))
+                         (cdr head-minus-1)
                          (error
                           (string-append 
                           (string-append "Mismatched parens and braces: " (make-string 1 (car opener)))
@@ -632,33 +621,22 @@
                             (if (left-opener? next-token)
                                 (read-list next-token (cons #f null))
                                 next-token) null)])
-                       ;(display "insert into tail: ")
-                       ;(print tail) (display " -> ")
-                       ;(print new-tail) (newline)
                        (set-cdr! tail new-tail)
                        (read-remainder new-tail (read-token) dot-context))])))])
           (let ([token (read-token)])
-            ;(displayln "top-level reader")
             (cond
               [(left-opener? token)
                (read-list token (cons #f null))]
               [else token])))))))
 
 (define (read-string str)
-  (let
-      ([string-reader
-        (#%make-reader
-         (begin
-           ;(displayln "making reader")
-           (let ([n (string-length str)]
-                 [i 0])
-             (lambda ()
-               (if (< i n)
-                   (let ([result (string-ref str i)])
-                     (set! i (+ i 1))
-                     result)
-                   -1)))))])
-    (begin
-      ;(displayln "invoking reader")
-      (string-reader))))
+  ((#%make-reader
+   (let ([n (string-length str)]
+         [i 0])
+     (lambda ()
+       (if (< i n)
+           (let ([result (string-ref str i)])
+             (set! i (+ i 1))
+             result)
+           -1))))))
        
